@@ -1,6 +1,6 @@
 # Pi-BNO055
 
-This is a small demo code for reading data from a Bosch BNO055 IMU sensor via I2C. I wrote it to check if the sensor is working, reading the first seven ID register data. I used a GY-BNO055, and had to fill two solder pads for enabling I2C mode.
+This is a small demo code for reading data from a Bosch BNO055 IMU sensor via I2C. I wrote it to check if the sensor is working, reading the first seven ID register data. I used a GY-BNO055, and had to fill two solder pads for enabling I2C mode. Later I switched to Adafruit for the superior quality and 5V-level support.
 
 <img src="ada-bno055.png" height="320px" width="273px">
 
