@@ -28,15 +28,17 @@ cc -O3 -Wall -g   -c -o getbno055.o getbn
 
 Running the test program:
 ```
-root@pi-ws01:/home/pi/bno055# ./getbno055 -a 0x29 -t inf -v
-Debug: ts=[1531553339] date=Sat Jul 14 16:28:59 2018
-Debug: Sensor I2C address: [0x29]
-Debug: Sensor CHIPID: [0xA0]
-Debug: Sensor ACC ID: [0xFB]
-Debug: Sensor MAG ID: [0x32]
-Debug: Sensor GYR ID: [0x0F]
-Debug: SW Rev ID LSB: [0x11]
-Debug: SW Rev ID MSB: [0x03]
-Debug: BL Rev ID: [0x15]
-1531553339 CHIPID=a0 ACCID=fb GYRID=f MAGID=32
+pi@pi-ws01:~/pi-bno055 $ ./getbno055 -a 0x28 -t inf -v
+Debug: ts=[1534157328] date=Sun Aug 12 19:48:48 2018
+Debug: Sensor Address: [0x28]
+Debug: Sensor CHIP ID: [0xA0]
+Debug: Sensor  ACC ID: [0xFB]
+Debug: Sensor  MAG ID: [0x32]
+Debug: Sensor  GYR ID: [0x0F]
+Debug: SW  Rev-ID LSB: [0x11]
+Debug: SW  Rev-ID MSB: [0x03]
+Debug: Bootloader Ver: [0x15]
+Debug: Operation Mode: [0x10]
+1534157328 CHIPID=a0 ACCID=fb GYRID=f MAGID=32 OPMODE=0
+OPMODE: CONFIG
 ```
