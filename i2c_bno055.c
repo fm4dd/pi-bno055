@@ -28,6 +28,55 @@
 #include <time.h>
 #include "getbno055.h"
 
+int stat_cal(char *i2caddr, struct bnocal *bno_ptr,  int verbose) {
+/* ------------------------------------------------------------ *
+ * Get the I2C bus. Raspberry Pi 2 uses i2c-1, RPI 1 used i2c-0 *
+ * ------------------------------------------------------------ */
+   int file;
+   char *bus = "/dev/i2c-1";
+   if((file = open(bus, O_RDWR)) < 0) {
+      printf("Error failed to open I2C bus [%s].\n", bus);
+      return(-1);
+   }
+/* ------------------------------------------------------------ *
+ * Set I2C device (BNO055 I2C address is either 0x28 or 0x29)   *
+ * ------------------------------------------------------------ */
+   int addr = (int)strtol(i2caddr, NULL, 16);
+   if(verbose == 1) printf("Debug: Sensor Address: [0x%02X]\n", addr);
+
+   ioctl(file, I2C_SLAVE, addr);
+
+   char reg = 0x00;
+   char data = 0;
+   return(0);
+}
+
+int read_cal(char *i2caddr, struct bnocal *bno_ptr,  int verbose) {
+/* ------------------------------------------------------------ *
+ * Get the I2C bus. Raspberry Pi 2 uses i2c-1, RPI 1 used i2c-0 *
+ * ------------------------------------------------------------ */
+   int file;
+   char *bus = "/dev/i2c-1";
+   if((file = open(bus, O_RDWR)) < 0) {
+      printf("Error failed to open I2C bus [%s].\n", bus);
+      return(-1);
+   }
+/* ------------------------------------------------------------ *
+ * Set I2C device (BNO055 I2C address is either 0x28 or 0x29)   *
+ * ------------------------------------------------------------ */
+   int addr = (int)strtol(i2caddr, NULL, 16);
+   if(verbose == 1) printf("Debug: Sensor Address: [0x%02X]\n", addr);
+
+   ioctl(file, I2C_SLAVE, addr);
+
+   char reg = 0x00;
+   char data = 0;
+/* ------------------------------------------------------------ *
+ * Calibration data is stored in 3x6 (18) registers 0x55 ~ 0x66 *
+ * ------------------------------------------------------------ */
+   return(0);
+}
+
 int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
 /* ------------------------------------------------------------ *
  * Get the I2C bus. Raspberry Pi 2 uses i2c-1, RPI 1 used i2c-0
@@ -42,7 +91,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
  * Set I2C device (BNO055 I2C address is either 0x28 or 0x29)
  * ------------------------------------------------------------ */
    int addr = (int)strtol(i2caddr, NULL, 16);
-   if(verbose == 1) printf("Debug: Sensor I2C address: [0x%02X]\n", addr);
+   if(verbose == 1) printf("Debug: Sensor Address: [0x%02X]\n", addr);
 
    ioctl(file, I2C_SLAVE, addr);
 
@@ -57,7 +106,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->chip_id = data;
-   if(verbose == 1) printf("Debug: Sensor CHIPID: [0x%02X]\n", bno_ptr->chip_id);
+   if(verbose == 1) printf("Debug: Sensor CHIP ID: [0x%02X]\n", bno_ptr->chip_id);
 
 /* ------------------------------------------------------------ *
  * Read 1-byte Accelerometer ID from register 0x01 (default: 0xFB)
@@ -70,7 +119,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->acc_id = data;
-   if(verbose == 1) printf("Debug: Sensor ACC ID: [0x%02X]\n", bno_ptr->acc_id);
+   if(verbose == 1) printf("Debug: Sensor  ACC ID: [0x%02X]\n", bno_ptr->acc_id);
 
 /* ------------------------------------------------------------ *
  * Read 1-byte Magnetometer ID from register 0x02 (default 0x32)
@@ -83,7 +132,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->mag_id = data;
-   if(verbose == 1) printf("Debug: Sensor MAG ID: [0x%02X]\n", bno_ptr->mag_id);
+   if(verbose == 1) printf("Debug: Sensor  MAG ID: [0x%02X]\n", bno_ptr->mag_id);
 
 /* ------------------------------------------------------------ *
  * Read 1-byte Gyroscope ID from register 0x03 (default: 0x0F)
@@ -96,7 +145,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->gyr_id = data;
-   if(verbose == 1) printf("Debug: Sensor GYR ID: [0x%02X]\n", bno_ptr->gyr_id);
+   if(verbose == 1) printf("Debug: Sensor  GYR ID: [0x%02X]\n", bno_ptr->gyr_id);
 
 /* ------------------------------------------------------------ *
  * Read 1-byte SW Rev ID LSB from register 0x04 (default: 0x08)
@@ -109,7 +158,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->sw_lsb = data;
-   if(verbose == 1) printf("Debug: SW Rev ID LSB: [0x%02X]\n", bno_ptr->sw_lsb);
+   if(verbose == 1) printf("Debug: SW  Rev-ID LSB: [0x%02X]\n", bno_ptr->sw_lsb);
 
 /* ------------------------------------------------------------ *
  * Read 1-byte SW Rev ID MSB from register 0x05 (default: 0x03)
@@ -122,7 +171,7 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->sw_msb = data;
-   if(verbose == 1) printf("Debug: SW Rev ID MSB: [0x%02X]\n", bno_ptr->sw_msb);
+   if(verbose == 1) printf("Debug: SW  Rev-ID MSB: [0x%02X]\n", bno_ptr->sw_msb);
 
 /* ------------------------------------------------------------ *
  * Read 1-byte BL Rev ID from register 0x06 (no default)
@@ -135,10 +184,25 @@ int read_inf(char *i2caddr, struct bnover *bno_ptr,  int verbose) {
       return(-1);
    }
    bno_ptr->bl_rev = data;
-   if(verbose == 1) printf("Debug: BL Rev ID: [0x%02X]\n", bno_ptr->bl_rev);
+   if(verbose == 1) printf("Debug: Bootloader Ver: [0x%02X]\n", bno_ptr->bl_rev);
+
+/* ------------------------------------------------------------ *
+ * Read 1-byte from Operations Mode from register 0x3d, and use *
+ * only the lowest 4 bits. Bits 4-7 unused and get stripped off *
+ * ------------------------------------------------------------ */
+   reg = 0x3d;
+   data = 0;
+   write(file, &reg, 1);
+   if(read(file, &data, 1) != 1) {
+      printf("Error: Input/Output error while reading from sensor\n");
+      return(-1);
+   }
+   bno_ptr->opr_mode = data & 0x0F; // only get the lowest 4 bits
+   if(verbose == 1) printf("Debug: Operation Mode: [0x%02X]\n", data);
 
    return(0);
 }
+
 int read_mag(char *i2caddr, float *magx_ptr, float *magy_ptr, float *magz_ptr,  int verbose) {
    return(0);
 }

@@ -3,8 +3,9 @@
  * purpose:     Read sensor data from BNO055 IMU sensor modules *
  *                                                              *
  * params:      -a = I2C address (default: 0x29)                *
- *              -t = type acc|gyr|mag|inf (default: inf)        *
- *              -o = write results into html file               *
+ *              -t = read acc|gyr|mag|inf (default: inf)        *
+ *              -s = save calibration data to file              *
+ *              -o = write read results into html file          *
  *              -v = verbose output to stdout                   *
  * return:      0 on success, and -1 on errors.                 *
  *                                                              *
@@ -27,9 +28,11 @@
  * ------------------------------------------------------------ */
 int verbose = 0;
 int outflag = 0;
+int calflag = 0;
 char datatype[256];
 char senaddr[256];
 char htmfile[256];
+char calfile[256];
 
 /* ------------------------------------------------------------ *
  * print_usage() prints the programs commandline instructions.  *
@@ -38,17 +41,31 @@ void usage() {
    static char const usage[] = "Usage: getbno055 -a [hex i2c addr] -t [acc|gyr|mag|inf] -o [html-output] [-v]\n\
 \n\
 Command line parameters have the following format:\n\
-   -a   sensor address on the I2C bus in hex, Example: -a 0x76\n\
-   -t   sensor data: Accelerometer = acc (3 values for X-Y-Z axis)\n\
-                     Gyroscope     = gyr (3 values for X-Y-X axis)\n\
-                     Magnetometer  = mag (3 values for X-Y-Z axis)\n\
-                     Sensor Info   = inf (7 values). Example: -t mag\n\
+   -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
+   -t   read data from: Accelerometer = acc (3 values for X-Y-Z axis)\n\
+                        Gyroscope     = gyr (3 values for X-Y-X axis)\n\
+                        Magnetometer  = mag (3 values for X-Y-Z axis)\n\
+                        Sensor Info   = inf (7 values). Example: -t mag\n\
+   -c   write sensor calibration data to file, Example -c ./bno055.cal\n\
+   -s   set sensor operational mode. mode arguments:\n\
+                        acconly = accelerometer only\n\
+			magonly = magnetometer only\n\
+			gyronly = gyroscope only\n\
+			accmag = accelerometer + mangetometer\n\
+			accgyro = accelerometer + gyroscope\n\
+			maggyro = magetometer + gyroscope\n\
+			amg = accelerometer + magnetoscope + gyro\n\
+			imu = accelerometer + gyro + rel. orientation\n\
+			compass = accelerometer + magnetometer + abs. orientation\n\
+			m4g = accelerometer + magnetometer + rel. orientation\n\
+			ndof = accel + magnetometer + gyro + abs. orientation\n\
    -o   optional, write sensor data to HTML file, Example: -o ./getsensor.html\n\
    -h   optional, display this message\n\
    -v   optional, enables debug output\n\
 \n\
 Usage examples:\n\
-./getbno055 -a 0x29 -t inf -o ./bno055.html -v\n";
+./getbno055 -a 0x28 -t inf -o ./bno055.html -v\n\
+./getbno055 -a 0x28 -s ./bno055.cal -v\n";
    printf(usage);
 }
 
@@ -61,7 +78,7 @@ void parseargs(int argc, char* argv[]) {
 
    if(argc == 1) { usage(); exit(-1); }
 
-   while ((arg = (int) getopt (argc, argv, "a:t:o:vh")) != -1) {
+   while ((arg = (int) getopt (argc, argv, "a:t:s:o:vh")) != -1) {
       switch (arg) {
          // arg -a + sensor address, type: string
          // mandatory, example: 0x29
@@ -70,11 +87,19 @@ void parseargs(int argc, char* argv[]) {
             strncpy(senaddr, optarg, sizeof(senaddr));
             break;
 
-         // arg -t + data type, type: string
-         // mandatory, example: mag
+         // arg -t + sensor component, type: string
+         // mandatory, example: mag (magnetometer)
          case 't':
             if(verbose == 1) printf("Debug: arg -t, value %s\n", optarg);
             strncpy(datatype, optarg, sizeof(datatype));
+            break;
+
+         // arg -s + calibration file name, type: string
+         // instead of -t, writes sensor calibration to file. example: ./bno055.cal
+         case 's':
+            calflag = 1;
+            if(verbose == 1) printf("Debug: arg -s, value %s\n", optarg);
+            strncpy(calfile, optarg, sizeof(calfile));
             break;
 
          // arg -o + dst HTML file, type: string
@@ -127,13 +152,37 @@ int main(int argc, char *argv[]) {
    time_t tsnow = time(NULL);
    if(verbose == 1) printf("Debug: ts=[%lld] date=%s", (long long) tsnow, ctime(&tsnow));
 
+   int res = -1;
+   /* ----------------------------------------------------------- *
+    *  "-s" reads sensor calibration data and writes it to file.  *
+    * ----------------------------------------------------------- */
+    if(calflag == 1) {
+      struct bnocal bnoc;
+      /* -------------------------------------------------------- *
+       *  Check the sensors calibration state                     *
+       * -------------------------------------------------------- */
+      res = stat_cal(senaddr, &bnoc, verbose);
+      /* -------------------------------------------------------- *
+       *  Read the sensors calibration data.                      *
+       * -------------------------------------------------------- */
+      res = read_cal(senaddr, &bnoc, verbose);
+      /* -------------------------------------------------------- *
+       *  Open the calibration data file for writing.             *
+       * -------------------------------------------------------- */
+      FILE *calib;
+      if(! (calib=fopen(calfile, "w"))) {
+         printf("Error open %s for writing.\n", calfile);
+         exit(-1);
+      }
+
+      exit(0);
+   }
    /* ----------------------------------------------------------- *
     *  Read info data from the sensor                             *
     * ----------------------------------------------------------- */
-   int res = -1;
    if(strcmp(datatype, "inf") == 0) {
-      struct bnover bno;
-      res = read_inf(senaddr, &bno, verbose);
+      struct bnover bnov;
+      res = read_inf(senaddr, &bnov, verbose);
       if(res != 0) {
          printf("Error: Cannot read sensor %s data, return code %d.\n", datatype, res);
          exit(-1);
@@ -142,8 +191,58 @@ int main(int argc, char *argv[]) {
        * print the formatted output string to stdout (Example below) *              
        * 1498385783 CHIPID=24 ACCID=55 GYRID=9 MAGID=3               *
        * ----------------------------------------------------------- */
-      printf("%lld CHIPID=%x ACCID=%x GYRID=%x MAGID=%x\n",
-            (long long) tsnow, bno.chip_id, bno.acc_id, bno.gyr_id, bno.mag_id);
+      printf("%lld CHIPID=%x ACCID=%x GYRID=%x MAGID=%x OPMODE=%x\n",
+            (long long) tsnow, bnov.chip_id, bnov.acc_id, bnov.gyr_id,
+	     bnov.mag_id, bnov.opr_mode);
+
+      /* ----------------------------------------------------------- *
+       *  In verbose mode decode and display the operations state    *
+       * ----------------------------------------------------------- */
+      if(verbose == 1) {
+      printf("OPMODE: ");
+      switch(bnov.opr_mode) {
+         case 0x00:
+            printf("CONFIG\n");
+            break;
+	 case 0x01:
+            printf("ACCONLY\n");
+            break;
+	 case 0x02:
+            printf("MAGONLY\n");
+            break;
+	 case 0x03:
+            printf("GYRONLY\n");
+            break;
+	 case 0x04:
+            printf("ACCMAG\n");
+            break;
+	 case 0x05:
+            printf("ACCGYRO\n");
+            break;
+	 case 0x06:
+            printf("MAGGYRO\n");
+            break;
+	 case 0x07:
+            printf("AMG\n");
+            break;
+	 case 0x08:
+            printf("IMU\n");
+            break;
+	 case 0x09:
+            printf("COMPASS\n");
+            break;
+	 case 0x10:
+            printf("M4G\n");
+            break;
+	 case 0x11:
+            printf("NDOF_FMC_OFF\n");
+            break;
+	 case 0x12:
+            printf("NDOF\n");
+            break;
+         }
+      }
+      exit(0);
    }
 
    /* ----------------------------------------------------------- *
