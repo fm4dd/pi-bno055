@@ -4,7 +4,7 @@ This is a small demo code for reading data from a Bosch BNO055 IMU sensor via I2
 
 <img src="ada-bno055.png" height="320px" width="273px">
 
-Connecting the sensor to the Raspberry Pi I2C bus, the sensor responds with the slave address 0x29.
+Connecting the GY-BNO055 sensor to the Raspberry Pi I2C bus, the sensor responds with the slave address 0x29. The Adafruit sensor, by default, responds under 0x28.
 
 ```
 root@pi-ws01:/home/pi# i2cdetect -y 1
