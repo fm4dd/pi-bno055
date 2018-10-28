@@ -1,15 +1,15 @@
 /* ------------------------------------------------------------ *
  * file:        getbno055.c                                     *
- * purpose:     Read sensor data from BNO055 IMU sensor modules *
+ * purpose:     Sensor control and data extraction program for  *
+ *              the Bosch BNO055 absolute orientation sensor    *
  *                                                              *
- * params:      -a = I2C address (default: 0x28)                *
- *              -t = read acc|gyr|mag|inf (default: inf)        *
- *              -s = save calibration data to file              *
- *              -o = write read results into html file          *
- *              -v = verbose output to stdout                   *
  * return:      0 on success, and -1 on errors.                 *
  *                                                              *
- * example:	./getbno055 -a 0x28 -t mag -o bno055.htm        *
+ * requires:	I2C headers, e.g. sudo apt install libi2c-dev   *
+ *                                                              *
+ * compile:	gcc -o getbno055 i2c_bno055.c getbno055.c       *
+ *                                                              *
+ * example:	./getbno055 -t eul  -o bno055.htm               *
  *                                                              *
  * author:      05/04/2018 Frank4DD                             *
  * ------------------------------------------------------------ */
@@ -39,34 +39,42 @@ char calfile[256];
  * print_usage() prints the programs commandline instructions.  *
  * ------------------------------------------------------------ */
 void usage() {
-   static char const usage[] = "Usage: getbno055 [-a hex i2c addr] -t acc|gyr|mag|inf|cal [-r] [-s <opr_mode>] [-w] [-o html-output] [-v]\n\
+   static char const usage[] = "Usage: getbno055 [-a hex i2cr-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]\n\
 \n\
 Command line parameters have the following format:\n\
-   -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
-   -t   read data from: Accelerometer = acc (3 values for X-Y-Z axis)\n\
-                        Gyroscope     = gyr (3 values for X-Y-X axis)\n\
-                        Magnetometer  = mag (3 values for X-Y-Z axis)\n\
-                        Sensor Info   = inf (7 values version and state\n\
-                        Calibration   = cal (9 values for each X-Y-Z)\n\
-   -r   optional, reset sensor\n\
-   -s   set sensor operational mode. mode arguments:\n\
-                        config = configuration mode\n\
-                        acconly = accelerometer only\n\
-			magonly = magnetometer only\n\
-			gyronly = gyroscope only\n\
-			accmag = accelerometer + mangetometer\n\
-			accgyro = accelerometer + gyroscope\n\
-			maggyro = magetometer + gyroscope\n\
-			amg = accelerometer + magnetoscope + gyro\n\
-			imu = accelerometer + gyro + rel. orientation\n\
-			compass = accelerometer + magnetometer + abs. orientation\n\
-			m4g = accelerometer + magnetometer + rel. orientation\n\
-			ndof = accel + magnetometer + gyro + abs. orientation\n\
-			ndof_fmc = ndof with fast magnetometer calibration (FMC)\n\
-   -w   optional, write sensor calibration data to file, Example -c ./bno055.cal\n\
-   -o   optional, write sensor data to HTML file, Example: -o ./getsensor.html\n\
-   -h   optional, display this message\n\
-   -v   optional, enables debug output\n\
+*  -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
+*  -m   set sensor operational mode. mode arguments:\n\
+           config   = configuration mode\n\
+           acconly  = accelerometer only\n\
+           magonly  = magnetometer only\n\
+           gyronly  = gyroscope only\n\
+           accmag   = accelerometer + magnetometer\n\
+           accgyro  = accelerometer + gyroscope\n\
+           maggyro  = magetometer + gyroscope\n\
+           amg      = accelerometer + magnetoscope + gyro\n\
+           imu      = accelerometer + gyro + rel. orientation\n\
+           compass  = accelerometer + magnetometer + abs. orientation\n\
+           m4g      = accelerometer + magnetometer + rel. orientation\n\
+           ndof     = accel + magnetometer + gyro + abs. orientation\n\
+           ndof_fmc = ndof with fast magnetometer calibration (FMC)\n\
+*  -r   reset sensor\n\
+   -t   read and output sensor data. data type arguments:\n\
+*          acc = Accelerometer (3 values for X-Y-Z axis)\n\
+           gyr = Gyroscope (3 values for X-Y-X axis)\n\
+*          mag = Magnetometer (3 values for X-Y-Z axis)\n\
+*          eul = Orientation E (3 values for H-R-P as Euler angles)\n\
+*          qua = Orientation Q (4 values for W-X-Y-Z as Quaternation)\n\
+           lin = Linear Accel (3 values for X-Y-Z axis)\n\
+           gra = GravityVector (3 values for X-Y-Z axis)\n\
+*          inf = Sensor info (7 values version and state)\n\
+*          cal = Calibration data (9 values for each X-Y-Z)\n\
+   -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
+   -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
+*  -o   output sensor data to HTML table file, requires -t, Example: -o ./getsensor.html\n\
+*  -h   display this message\n\
+*  -v   enable debug output\n\
+\n\
+Note: The sensor is executing calibration in the background, but only in fusion mode.\n\
 \n\
 Usage examples:\n\
 ./getbno055 -a 0x28 -t inf -v\n\
@@ -86,7 +94,7 @@ void parseargs(int argc, char* argv[]) {
 
    if(argc == 1) { usage(); exit(-1); }
 
-   while ((arg = (int) getopt (argc, argv, "a:t:rs:w:o:hv")) != -1) {
+   while ((arg = (int) getopt (argc, argv, "a:m:rt:l:w:o:hv")) != -1) {
       switch (arg) {
          // arg -v verbose, type: flag, optional
          case 'v':
@@ -103,6 +111,19 @@ void parseargs(int argc, char* argv[]) {
             strncpy(senaddr, optarg, sizeof(senaddr));
             break;
 
+         // arg -m + sets operations mode, type: string
+         case 'm':
+            if(verbose == 1) printf("Debug: arg -m, value %s\n", optarg);
+            strncpy(opr_mode, optarg, sizeof(opr_mode));
+            break;
+
+         // arg -r
+         // optional, resets sensor
+         case 'r':
+            if(verbose == 1) printf("Debug: arg -r, value %s\n", optarg);
+            resflag = 1;
+            break;
+
          // arg -t + sensor component, type: string
          // mandatory, example: mag (magnetometer)
          case 't':
@@ -114,29 +135,24 @@ void parseargs(int argc, char* argv[]) {
             strncpy(datatype, optarg, sizeof(datatype));
             break;
 
-         // arg -r
-         // optional, resets sensor
-         case 'r':
-            if(verbose == 1) printf("Debug: arg -r, value %s\n", optarg);
-            resflag = 1;
-            break;
-
-         // arg -s + sets operations mode, type: string
-         case 's':
-            if(verbose == 1) printf("Debug: arg -s, value %s\n", optarg);
-            strncpy(opr_mode, optarg, sizeof(opr_mode));
+         // arg -l + calibration file name, type: string
+         // loads the sensor calibration from file. example: ./bno055.cal
+         case 'l':
+            calflag = 1;
+            if(verbose == 1) printf("Debug: arg -l, value %s\n", optarg);
+            strncpy(calfile, optarg, sizeof(calfile));
             break;
 
          // arg -w + calibration file name, type: string
-         // instead of -t, writes sensor calibration to file. example: ./bno055.cal
+         // writes sensor calibration to file. example: ./bno055.cal
          case 'w':
             calflag = 1;
             if(verbose == 1) printf("Debug: arg -w, value %s\n", optarg);
             strncpy(calfile, optarg, sizeof(calfile));
             break;
 
-         // arg -o + dst HTML file, type: string
-         // optional, example: /tmp/sensor.htm
+         // arg -o + dst HTML file, type: string, requires -t
+         // writes the sensor output to file. example: /tmp/sensor.htm
          case 'o':
             outflag = 1;
             if(verbose == 1) printf("Debug: arg -o, value %s\n", optarg);
@@ -164,7 +180,92 @@ void parseargs(int argc, char* argv[]) {
    }
 }
 
+/* ----------------------------------------------------------- *
+ *  print_calstat() - Read and print calibration status        *
+ * ----------------------------------------------------------- */
+void print_calstat() {
+   struct bnocal bnoc;
+   /* -------------------------------------------------------- *
+    *  Check the sensors calibration state                     *
+    * -------------------------------------------------------- */
+   int res = get_calstatus(&bnoc);
+   if(res != 0) {
+      printf("Error: Cannot read calibration state.\n");
+      exit(-1);
+   }
+
+   /* -------------------------------------------------------- *
+    *  Convert the status code into a status message           *
+    * -------------------------------------------------------- */
+    printf("Sensor System Calibration = ");
+    switch(bnoc.scal_st) {
+      case 0:
+         printf("Uncalibrated\n");
+         break;
+      case 1:
+         printf("Minimal Calibrated\n");
+         break;
+      case 2:
+         printf("Mostly Calibrated\n");
+         break;
+      case 3:
+         printf("Fully calibrated\n");
+         break;
+   }
+
+   printf("    Gyroscope Calibration = ");
+   switch(bnoc.gcal_st) {
+      case 0:
+         printf("Uncalibrated\n");
+         break;
+      case 1:
+         printf("Minimal Calibrated\n");
+         break;
+      case 2:
+         printf("Mostly Calibrated\n");
+         break;
+      case 3:
+         printf("Fully calibrated\n");
+         break;
+   }
+
+   printf("Accelerometer Calibration = ");
+   switch(bnoc.acal_st) {
+      case 0:
+         printf("Uncalibrated\n");
+         break;
+      case 1:
+         printf("Minimal Calibrated\n");
+         break;
+      case 2:
+         printf("Mostly Calibrated\n");
+         break;
+      case 3:
+         printf("Fully calibrated\n");
+         break;
+   }
+
+   printf(" Magnetometer Calibration = ");
+   switch(bnoc.mcal_st) {
+      case 0:
+         printf("Uncalibrated\n");
+         break;
+      case 1:
+         printf("Minimal Calibrated\n");
+         break;
+      case 2:
+         printf("Mostly Calibrated\n");
+         break;
+      case 3:
+         printf("Fully calibrated\n");
+         break;
+   }
+}
+
+
 int main(int argc, char *argv[]) {
+   int res = -1;       // res = function retcode: 0=OK, -1 = Error
+
    /* ---------------------------------------------------------- *
     * Process the cmdline parameters                             *
     * ---------------------------------------------------------- */
@@ -177,21 +278,15 @@ int main(int argc, char *argv[]) {
    if(verbose == 1) printf("Debug: ts=[%lld] date=%s", (long long) tsnow, ctime(&tsnow));
 
    /* ----------------------------------------------------------- *
-    * Open the I2C bus and connect to the sensor                  *
+    * "-a" open the I2C bus and connect to the sensor i2c address *
     * ----------------------------------------------------------- */
-   int res = -1;       // res = function retcode: 0=OK, -1 = Error
-   res = get_i2cbus(senaddr, verbose);
-
-   /* ----------------------------------------------------------- *
-    * Set defaults ops_mode=NDOF and power_mode=normal            *
-    * ----------------------------------------------------------- */
-   //res = set_defaults(verbose);
+   get_i2cbus(senaddr);
 
    /* ----------------------------------------------------------- *
     *  "-r" reset the sensor and exit the program                 *
     * ----------------------------------------------------------- */
     if(resflag == 1) {
-      res = bno_reset(verbose);
+      res = bno_reset();
       if(res != 0) {
          printf("Error: could not reset the sensor.\n");
          exit(-1);
@@ -200,7 +295,7 @@ int main(int argc, char *argv[]) {
    }
 
    /* ----------------------------------------------------------- *
-    *  "-s" set the sensor operational mode and exit the program  *
+    *  "-m" set the sensor operational mode and exit the program  *
     * ----------------------------------------------------------- */
    if(strlen(opr_mode) > 0) {
       opmode_t newmode;
@@ -222,9 +317,9 @@ int main(int argc, char *argv[]) {
          exit(-1);
       }
       
-      res = set_mode(newmode, verbose);
+      res = set_mode(newmode);
       if(res != 0) {
-         printf("Error: could not reset the sensor.\n");
+         printf("Error: could not set sensor mode %s [0x%02X].\n", opr_mode, newmode);
          exit(-1);
       }
       exit(0);
@@ -238,15 +333,15 @@ int main(int argc, char *argv[]) {
       /* -------------------------------------------------------- *
        *  Check the sensors calibration state                     *
        * -------------------------------------------------------- */
-      res = stat_cal(&bnoc, verbose);
+      res = get_calstatus(&bnoc);
       if(res != 0) {
          printf("Error: Cannot read calibration state.\n");
          exit(-1);
       }
       /* -------------------------------------------------------- *
-       *  Read the sensors calibration data.                      *
+       *  Read the sensors calibration offset                     *
        * -------------------------------------------------------- */
-      res = read_cal(&bnoc, verbose);
+      res = get_caloffset(&bnoc);
       if(res != 0) {
          printf("Error: Cannot read calibration data.\n");
          exit(-1);
@@ -263,121 +358,58 @@ int main(int argc, char *argv[]) {
    }
 
    /* ----------------------------------------------------------- *
-    *  Read and print calibration state and calibration data      *
+    * -t "cal"  print the sensor calibration data                 *
     * ----------------------------------------------------------- */
    if(strcmp(datatype, "cal") == 0) {
       struct bnocal bnoc;
       /* -------------------------------------------------------- *
-       *  Check the sensors calibration state                     *
+       *  Read the sensors calibration state                      *
        * -------------------------------------------------------- */
-      res = stat_cal(&bnoc, verbose);
+      res = get_calstatus(&bnoc);
       if(res != 0) {
          printf("Error: Cannot read calibration state.\n");
          exit(-1);
       }
-
-      printf("\nBN0055 Calibration at %s", ctime(&tsnow));
-      printf("----------------------------------------------\n");
-      printf("Sensor System Calibration State = ");
-      switch(bnoc.scal_st) {
-         case 0:
-            printf("Uncalibrated\n");
-            break;
-	 case 1:
-            printf("Minimal Calibrated\n");
-            break;
-	 case 2:
-            printf("Mostly Calibrated\n");
-            break;
-	 case 3:
-            printf("Fully calibrated\n");
-            break;
-      }
-
-      printf("    Gyroscope Calibration State = ");
-      switch(bnoc.gcal_st) {
-         case 0:
-            printf("Uncalibrated\n");
-            break;
-         case 1:
-            printf("Minimal Calibrated\n");
-            break;
-         case 2:
-            printf("Mostly Calibrated\n");
-            break;
-         case 3:
-            printf("Fully calibrated\n");
-            break;
-      }
-
-      printf("Accelerometer Calibration State = ");
-      switch(bnoc.acal_st) {
-         case 0:
-            printf("Uncalibrated\n");
-            break;
-         case 1:
-            printf("Minimal Calibrated\n");
-            break;
-         case 2:
-            printf("Mostly Calibrated\n");
-            break;
-         case 3:
-            printf("Fully calibrated\n");
-            break;
-      }
-
-      printf(" Magnetometer Calibration State = ");
-      switch(bnoc.mcal_st) {
-         case 0:
-            printf("Uncalibrated\n");
-            break;
-         case 1:
-            printf("Minimal Calibrated\n");
-            break;
-         case 2:
-            printf("Mostly Calibrated\n");
-            break;
-         case 3:
-            printf("Fully calibrated\n");
-            break;
-      }
-
       /* -------------------------------------------------------- *
-       *  Read the sensors calibration data.                      *
+       *  Read the sensors calibration offset                     *
        * -------------------------------------------------------- */
-      res = read_cal(&bnoc, verbose);
+      res = get_caloffset(&bnoc);
       if(res != 0) {
          printf("Error: Cannot read calibration data.\n");
          exit(-1);
       }
 
-      printf("----------------------------------------------\n");
-      printf("Accelerometer Calibration Offset = ");
-      printf("X:%5d Y:%5d Z:%5d\n", bnoc.aoff_x, bnoc.aoff_y, bnoc.aoff_z);
+      /* -------------------------------------------------------- *
+       *  Print the calibration data line                         *
+       * -------------------------------------------------------- */
+      printf("Calibration state: %d", bnoc.scal_st);
+      printf(" acc [S:%d ", bnoc.acal_st);
+      printf("X:%d Y:%d Z:%d", bnoc.aoff_x, bnoc.aoff_y, bnoc.aoff_z);
+      printf(" R:%d]", bnoc.acc_rad);
 
-      printf(" Magnetometer Calibration Offset = ");
-      printf("X:%5d Y:%5d Z:%5d\n", bnoc.moff_x, bnoc.moff_y, bnoc.moff_z);
+      printf(" mag [S:%d ", bnoc.mcal_st);
+      printf("X:%d Y:%d Z:%d", bnoc.moff_x, bnoc.moff_y, bnoc.moff_z);
+      printf(" R:%d]", bnoc.mag_rad);
 
-      printf("    Gyroscope Calibration Offset = ");
-      printf("X:%5d Y:%5d Z:%5d\n", bnoc.goff_x, bnoc.goff_y, bnoc.goff_z);
+      printf(" gyr [S:%d ", bnoc.gcal_st);
+      printf("X:%d Y:%d Z:%d]\n", bnoc.goff_x, bnoc.goff_y, bnoc.goff_z);
 
       exit(0);
    }
 
    /* ----------------------------------------------------------- *
-    *  Read and print componenent versions and operations mode    *
+    * -t "inf"  print the sensor configuration                    *
     * ----------------------------------------------------------- */
    if(strcmp(datatype, "inf") == 0) {
       struct bnoinf bnoi;
-      res = read_inf(&bnoi, verbose);
+      res = get_inf(&bnoi);
       if(res != 0) {
          printf("Error: Cannot read sensor version data.\n");
          exit(-1);
       }
 
       /* ----------------------------------------------------------- *
-       * print the formatted output string to stdout (Example below) *              
-       * 1498385783 CHIPID=24 ACCID=55 GYRID=9 MAGID=3               *
+       * print the formatted output strings to stdout                *              
        * ----------------------------------------------------------- */
       printf("\nBN0055 Information at %s", ctime(&tsnow));
       printf("----------------------------------------------\n");
@@ -385,73 +417,12 @@ int main(int argc, char *argv[]) {
       printf("  Accelerometer ID = 0x%02X\n", bnoi.acc_id);
       printf("      Gyroscope ID = 0x%02X\n", bnoi.gyr_id);
       printf("   Magnetoscope ID = 0x%02X\n", bnoi.mag_id);
-      printf("   Operations Mode = ");
-      switch(bnoi.opr_mode) {
-         case 0x00:
-            printf("CONFIG\n");
-            break;
-	 case 0x01:
-            printf("ACCONLY\n");
-            break;
-	 case 0x02:
-            printf("MAGONLY\n");
-            break;
-	 case 0x03:
-            printf("GYRONLY\n");
-            break;
-	 case 0x04:
-            printf("ACCMAG\n");
-            break;
-	 case 0x05:
-            printf("ACCGYRO\n");
-            break;
-	 case 0x06:
-            printf("MAGGYRO\n");
-            break;
-	 case 0x07:
-            printf("AMG\n");
-            break;
-	 case 0x08:
-            printf("IMU\n");
-            break;
-	 case 0x09:
-            printf("COMPASS\n");
-            break;
-	 case 0x0A:
-            printf("M4G\n");
-            break;
-	 case 0x0B:
-            printf("NDOF_FMC_OFF\n");
-            break;
-	 case 0x0C:
-            printf("NDOF\n");
-            break;
-      }
-
-      printf("System Status Code = ");
-      switch(bnoi.sys_stat) {
-         case 0x00:
-            printf("Idle\n");
-            break;
-         case 0x01:
-            printf("System Error\n");
-            break;
-         case 0x02:
-            printf("Initializing Peripherals\n");
-            break;
-         case 0x03:
-            printf("System Initalization\n");
-            break;
-         case 0x04:
-            printf("Executing Self-Test\n");
-            break;
-         case 0x05:
-            printf("Sensor running with fusion algorithm\n");
-            break;
-         case 0x06:
-            printf("System running without fusion algorithm\n");
-            break;
-      }
+      printf("  Software Version = %d.%d\n", bnoi.sw_msb, bnoi.sw_lsb);
+      printf("   Operations Mode = "); print_mode(bnoi.opr_mode);
+      printf("        Power Mode = "); print_power(bnoi.pwr_mode);
+      printf("Axis Configuration = "); print_remap_conf(bnoi.axr_conf);
+      printf("   Axis Remap Sign = "); print_remap_sign(bnoi.axr_sign);
+      printf("System Status Code = "); print_sstat(bnoi.sys_stat);
 
       printf("Accelerometer Test = ");
       if((bnoi.selftest >> 0) & 0x01) printf("OK\n");
@@ -539,27 +510,75 @@ int main(int argc, char *argv[]) {
       if((bnoi.unitsel >> 4) & 0x01) printf("°F\n");
       else printf("°C\n");
 
+      printf("\n----------------------------------------------\n");
+      print_calstat();
       exit(0);
    }
 
    /* ----------------------------------------------------------- *
-    *  Read Magnetometer data from the sensor                     *
+    *  "-t acc " reads accelerometer data from the sensor.        *
     * ----------------------------------------------------------- */
-   if(strcmp(datatype, "mag") == 0) {
-      float magx;
-      float magy;
-      float magz;
-      res = read_mag(&magx, &magy, &magz, verbose);
+   if(strcmp(datatype, "acc") == 0) {
+      struct bnodat bnod;
+      res = get_mag(&bnod);
       if(res != 0) {
-         printf("Error: Cannot read %s data, return code %d.\n", datatype, res);
+         printf("Error: Cannot read accelerometer data.\n");
          exit(-1);
       }
+
+      float acc_x = (float) bnod.adata_x / 16.0;
+      float acc_y = (float) bnod.adata_y / 16.0;
+      float acc_z = (float) bnod.adata_z / 16.0;
+
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * ACC-X: 4094.50 ACC-Y: 25.56 ACC-Z: 4067.25                  *
+       * ----------------------------------------------------------- */
+      printf("ACC-X: %3.2f ACC-Y: %3.2f ACC-Z: %3.2f\n", acc_x, acc_y, acc_z);
+
+      if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing accelerometer data       *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Accelerometer X:<span class=\"sensorvalue\">%3.2f</span></td>\n", acc_x);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Accelerometer Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", acc_y);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Accelerometer Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", acc_z);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+      }
+   } /* End reading Accelerometer */
+
+   /* ----------------------------------------------------------- *
+    *  "-t mag" reads magnetometer data from the sensor.          *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "mag") == 0) {
+      struct bnodat bnod;
+      res = get_mag(&bnod);
+      if(res != 0) {
+         printf("Error: Cannot read magnetometer data.\n");
+         exit(-1);
+      }
+
+      /* ----------------------------------------------------------- *
+       * Convert magnetometer data in microTesla. 1 microTesla = 16  *
+       * ----------------------------------------------------------- */
+      float mag_x = (float) bnod.mdata_x / 16.0;
+      float mag_y = (float) bnod.mdata_y / 16.0;
+      float mag_z = (float) bnod.mdata_z / 16.0;
+
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *              
-       * 1498385783 MAG-X=27.34 MAG-Y=55.82 MAG-Z=92.00              *
+       * MAG-X: 4094.50 MAG-Y: 25.56 MAG-Z: 4067.25                  *
        * ----------------------------------------------------------- */
-      printf("%lld MAG-X=%.2f MAG-Y=%.2f MAG-Z=%.2f\n",
-            (long long) tsnow, magx, magy, magz);
+      printf("MAG-X: %3.2f MAG-Y: %3.2f MAG-Z: %3.2f\n", mag_x, mag_y, mag_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -571,14 +590,131 @@ int main(int argc, char *argv[]) {
             exit(-1);
          }
          fprintf(html, "<table><tr>\n");
-         fprintf(html, "<td class=\"sensordata\">Magnetometer X:<span class=\"sensorvalue\">%.2f</span></td>\n", magx);
+         fprintf(html, "<td class=\"sensordata\">Magnetometer X:<span class=\"sensorvalue\">%3.2f</span></td>\n", mag_x);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Magnetometer Y:<span class=\"sensorvalue\">%.2f</span></td>\n", magy);
+         fprintf(html, "<td class=\"sensordata\">Magnetometer Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", mag_y);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Magentometer Z:<span class=\"sensorvalue\">%.2f</span></td>\n", magz);
+         fprintf(html, "<td class=\"sensordata\">Magentometer Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", mag_z);
          fprintf(html, "</tr></table>\n");
          fclose(html);
       }
-   } /* End reading Magnetometer */
+   } /* End reading Magnetometer data */
+
+   /* ----------------------------------------------------------- *
+    *  "-t eul" reads the Euler Orientation from the sensor.      *
+    * This requires the sensor to be in fusion mode (mode > 7).   *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "eul") == 0) {
+
+      int mode = get_mode();
+      if(mode < 8) {
+         printf("Error getting Euler data, sensor mode %d is not a fusion mode.\n", mode);
+         exit(-1);
+      }
+
+      struct bnodat bnod;
+      res = get_eul(&bnod);
+      if(res != 0) {
+         printf("Error: Cannot read Euler orientation data.\n");
+         exit(-1);
+      }
+
+      /* ----------------------------------------------------------- *
+       * Convert Euler orientation into degrees: 1 degree = 16 LSB   *
+       * X: Pitch -180..+180, Y: Roll -90..+90, Z: Heading 0..360    *
+       * ----------------------------------------------------------- */
+      if(verbose) printf("Debug: bnod.eul_head [%d]\n", bnod.eul_head);
+      if(verbose) printf("Debug: bnod.eul_roll [%d]\n", bnod.eul_roll);
+      if(verbose) printf("Debug: bnod.eul_pitc [%d]\n", bnod.eul_pitc);
+      float euler_h = (float) bnod.eul_head / 16.0;
+      float euler_r = (float) bnod.eul_roll / 16.0;
+      float euler_p = (float) bnod.eul_pitc / 16.0;
+
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * EUL-H: 8.44 EUL-R: 4088.12 EUL-P: 4080.12 in degrees 0-360  *
+       * ----------------------------------------------------------- */
+      printf("EUL-H: %3.2f EUL-R: %3.2f EUL-P: %3.2f\n", euler_h, euler_r, euler_p);
+
+      if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing Euler Orientation data   *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Euler Heading:<span class=\"sensorvalue\">%d</span></td>\n", bnod.eul_head);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Euler Roll:<span class=\"sensorvalue\">%d</span></td>\n", bnod.eul_roll);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Euler Pitch:<span class=\"sensorvalue\">%d</span></td>\n", bnod.eul_pitc);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+      }
+   } /* End reading Euler Orientation */
+
+   /* ----------------------------------------------------------- *
+    *  "-t qua" reads the Quaternation data from the sensor.      *
+    * This requires the sensor to be in fusion mode (mode > 7).   *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "qua") == 0) {
+
+      int mode = get_mode();
+      if(mode < 8) {
+         printf("Error getting Quaternation, sensor mode %d is not a fusion mode.\n", mode);
+         exit(-1);
+      }
+
+      struct bnodat bnod;
+      res = get_eul(&bnod);
+      if(res != 0) {
+         printf("Error: Cannot read Quaternation data.\n");
+         exit(-1);
+      }
+
+      /* ----------------------------------------------------------- *
+       * Convert Euler orientation into degrees: 1 degree = 16 LSB   *
+       * ----------------------------------------------------------- */
+      if(verbose) printf("Debug: bnod.quater_w [%d]\n", bnod.quater_w);
+      if(verbose) printf("Debug: bnod.quater_x [%d]\n", bnod.quater_x);
+      if(verbose) printf("Debug: bnod.quater_y [%d]\n", bnod.quater_y);
+      if(verbose) printf("Debug: bnod.quater_z [%d]\n", bnod.quater_z);
+
+      const double scale = (1.0 / (1<<14));
+      float quater_w = (float) bnod.quater_w * scale;
+      float quater_x = (float) bnod.quater_x * scale;
+      float quater_y = (float) bnod.quater_y * scale;
+      float quater_z = (float) bnod.quater_z * scale;
+
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * EUL-H: 8.44 EUL-R: 4088.12 EUL-P: 4080.12 in degrees 0-360  *
+       * ----------------------------------------------------------- */
+      printf("QUA-W: %3.2f QUA-X: %3.2f QUA-Y: %3.2f QUA-Z: %3.2f\n", quater_w, quater_x, quater_y, quater_z);
+
+      if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing Quaternation data        *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Quaternation W:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_w);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Quaternation X:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_x);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Quaternation Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_y);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Quaternation Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_z);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+      }
+   } /* End reading Quaternation data */
    exit(0);
 }

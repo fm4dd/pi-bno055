@@ -154,6 +154,7 @@
  * global variables                                             *
  * ------------------------------------------------------------ */
 int i2cfd;       // I2C file descriptor
+int verbose;     // debug flag, 0 = normal, 1 = debug mode
 
 /* ------------------------------------------------------------ *
  * BNO055 versions, status data and other infos struct          *
@@ -167,6 +168,9 @@ struct bnoinf{
    char sw_msb;   // reg 0x05 default 0x03
    char bl_rev;   // reg 0x06 no default
    char opr_mode; // reg 0x3D default 0x1C
+   char pwr_mode; // reg 0x3E default 0x00
+   char axr_conf; // reg 0x41 default 0x24
+   char axr_sign; // reg 0x42 default 0x00
    char sys_stat; // reg 0x39 system error status, range 0-6
    char selftest; // reg 0x36 self test result
    char sys_err;  // reg 0x3a system error code, 0=OK
@@ -195,6 +199,8 @@ struct bnocal{
    int  goff_x;   // gyroscope offset, X-axis
    int  goff_y;   // gyroscope offset, Y-axis
    int  goff_z;   // gyroscope offset, Z-axis
+   int acc_rad;   // accelerometer radius
+   int mag_rad;   // magnetometer radius
 };
 
 /* ------------------------------------------------------------ *
@@ -202,26 +208,26 @@ struct bnocal{
  * on the sensor component type that was requested for reading. *
  * ------------------------------------------------------------ */
 struct bnodat{
-   int  adata_x;   // accelerometer data, X-axis
-   int  adata_y;   // accelerometer data, Y-axis
-   int  adata_z;   // accelerometer data, Z-axis
-   int  mdata_x;   // magnetometer data, X-axis
-   int  mdata_y;   // magnetometer data, Y-axis
-   int  mdata_z;   // magnetometer data, Z-axis
-   int  gdata_x;   // gyroscope data, X-axis
-   int  gdata_y;   // gyroscope data, Y-axis
-   int  gdata_z;   // gyroscope data, Z-axis
-   int eul_head;   // Euler heading data
-   int eul_roll;   // Euler roll data
-   int eul_pitc;   // Euler picth data
-   int quater_w;   // Quaternation data W
-   int quater_x;   // Quaternation data X
-   int quater_y;   // Quaternation data Y
-   int quater_z;   // Quaternation data Z
+   unsigned int  adata_x;   // accelerometer data, X-axis
+   unsigned int  adata_y;   // accelerometer data, Y-axis
+   unsigned int  adata_z;   // accelerometer data, Z-axis
+   unsigned int  mdata_x;   // magnetometer data, X-axis
+   unsigned int  mdata_y;   // magnetometer data, Y-axis
+   unsigned int  mdata_z;   // magnetometer data, Z-axis
+   unsigned int  gdata_x;   // gyroscope data, X-axis
+   unsigned int  gdata_y;   // gyroscope data, Y-axis
+   unsigned int  gdata_z;   // gyroscope data, Z-axis
+   unsigned int eul_head;   // Euler heading data
+   unsigned int eul_roll;   // Euler roll data
+   unsigned int eul_pitc;   // Euler picth data
+   unsigned int quater_w;   // Quaternation data W
+   unsigned int quater_x;   // Quaternation data X
+   unsigned int quater_y;   // Quaternation data Y
+   unsigned int quater_z;   // Quaternation data Z
 };
 
 /* ------------------------------------------------------------ *
- * Operation mode name to value translation                     *
+ * Operations and power mode, name to value translation         *
  * ------------------------------------------------------------ */
 typedef enum {
    config   = 0x00,
@@ -239,14 +245,33 @@ typedef enum {
    ndof_fmc = 0x0C
 } opmode_t;
 
+typedef enum {
+   normal  = 0x00,
+   low     = 0x01,
+   suspend = 0x02
+} power_t;
+
 /* ------------------------------------------------------------ *
- * external function prototypes for sensor-type specific code
+ * external function prototypes for I2C bus communication code  *
  * ------------------------------------------------------------ */
-extern int get_i2cbus(char*, int);
-extern int set_defaults(int);
-extern int stat_cal(struct bnocal*, int);
-extern int read_cal(struct bnocal*, int);
-extern int read_inf(struct bnoinf*, int);
-extern int read_mag(float*,  float*, float*, int);
-extern int set_mode(opmode_t,  int);
-extern int bno_reset(int);
+extern void get_i2cbus(char*);            // gets the I2C bus file handle
+extern int set_defaults();                // sets sensor default values
+extern int get_calstatus(struct bnocal*); // reads calibration status
+extern int get_caloffset(struct bnocal*); // reads calibration values
+extern int get_inf(struct bnoinf*);       // reads sensor information
+extern int get_mag(struct bnodat*);       // reads magnetometer data
+extern int get_eul(struct bnodat*);       // reads euler orientation
+extern int get_qua(struct bnodat*);       // reads quaternation data
+extern int set_mode(opmode_t);            // sets the sensor ops mode
+extern int get_mode();                    // gets the sensor ops mode
+extern int print_mode(int);               // prints ops mode string
+extern int set_power(power_t);            // sets the sensor power mode
+extern int get_power();                   // gets the sensor power mode
+extern int print_power(int);              // prints power mode string
+extern int get_sstat();                   // gets system status code
+extern int print_sstat(int);              // prints system status string
+extern int get_remap(char);               // gets the axis remap values
+extern int print_remap_conf(int);         // prints axis configuration
+extern int print_remap_sign(int);         // prints the axis remap +/-
+extern int bno_reset();                   // reset the sensor
+
