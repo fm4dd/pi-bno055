@@ -142,7 +142,7 @@ Debug: Euler Orientation H:[0xF9][0x02] P:[0x78][0xFF] R:[0x75][0xFF]
 Debug: bnod.eul_head [761]
 Debug: bnod.eul_roll [65400]
 Debug: bnod.eul_pitc [65397]
-EUL-H: 47.56 EUL-R: 4087.50 EUL-P: 4087.31
+EUL-H: 0.12 EUL-R: -3.31 EUL-P: -15.31
 ```
 
 ## Usage

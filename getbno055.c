@@ -526,15 +526,11 @@ int main(int argc, char *argv[]) {
          exit(-1);
       }
 
-      float acc_x = (float) bnod.adata_x / 16.0;
-      float acc_y = (float) bnod.adata_y / 16.0;
-      float acc_z = (float) bnod.adata_z / 16.0;
-
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
        * ACC-X: 4094.50 ACC-Y: 25.56 ACC-Z: 4067.25                  *
        * ----------------------------------------------------------- */
-      printf("ACC-X: %3.2f ACC-Y: %3.2f ACC-Z: %3.2f\n", acc_x, acc_y, acc_z);
+      printf("ACC-X: %3.2f ACC-Y: %3.2f ACC-Z: %3.2f\n", bnod.adata_x, bnod.adata_y, bnod.adata_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -546,11 +542,11 @@ int main(int argc, char *argv[]) {
             exit(-1);
          }
          fprintf(html, "<table><tr>\n");
-         fprintf(html, "<td class=\"sensordata\">Accelerometer X:<span class=\"sensorvalue\">%3.2f</span></td>\n", acc_x);
+         fprintf(html, "<td class=\"sensordata\">Accelerometer X:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.adata_x);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Accelerometer Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", acc_y);
+         fprintf(html, "<td class=\"sensordata\">Accelerometer Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.adata_y);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Accelerometer Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", acc_z);
+         fprintf(html, "<td class=\"sensordata\">Accelerometer Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.adata_z);
          fprintf(html, "</tr></table>\n");
          fclose(html);
       }
@@ -576,7 +572,7 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *              
-       * MAG-X: 4094.50 MAG-Y: 25.56 MAG-Z: 4067.25                  *
+       * MAG-X: 5.98 MAG-Y: 13.24 MAG-Z: -18.55                      *
        * ----------------------------------------------------------- */
       printf("MAG-X: %3.2f MAG-Y: %3.2f MAG-Z: %3.2f\n", mag_x, mag_y, mag_z);
 
@@ -620,21 +616,10 @@ int main(int argc, char *argv[]) {
       }
 
       /* ----------------------------------------------------------- *
-       * Convert Euler orientation into degrees: 1 degree = 16 LSB   *
-       * X: Pitch -180..+180, Y: Roll -90..+90, Z: Heading 0..360    *
-       * ----------------------------------------------------------- */
-      if(verbose) printf("Debug: bnod.eul_head [%d]\n", bnod.eul_head);
-      if(verbose) printf("Debug: bnod.eul_roll [%d]\n", bnod.eul_roll);
-      if(verbose) printf("Debug: bnod.eul_pitc [%d]\n", bnod.eul_pitc);
-      float euler_h = (float) bnod.eul_head / 16.0;
-      float euler_r = (float) bnod.eul_roll / 16.0;
-      float euler_p = (float) bnod.eul_pitc / 16.0;
-
-      /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * EUL-H: 8.44 EUL-R: 4088.12 EUL-P: 4080.12 in degrees 0-360  *
+       * EUL-H: 0.12 EUL-R: -3.31 EUL-P: -15.31 (degrees)            *
        * ----------------------------------------------------------- */
-      printf("EUL-H: %3.2f EUL-R: %3.2f EUL-P: %3.2f\n", euler_h, euler_r, euler_p);
+      printf("EUL-H: %3.2f EUL-R: %3.2f EUL-P: %3.2f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -646,11 +631,11 @@ int main(int argc, char *argv[]) {
             exit(-1);
          }
          fprintf(html, "<table><tr>\n");
-         fprintf(html, "<td class=\"sensordata\">Euler Heading:<span class=\"sensorvalue\">%d</span></td>\n", bnod.eul_head);
+         fprintf(html, "<td class=\"sensordata\">Euler Heading:<span class=\"sensorvalue\">%f</span></td>\n", bnod.eul_head);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Euler Roll:<span class=\"sensorvalue\">%d</span></td>\n", bnod.eul_roll);
+         fprintf(html, "<td class=\"sensordata\">Euler Roll:<span class=\"sensorvalue\">%f</span></td>\n", bnod.eul_roll);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Euler Pitch:<span class=\"sensorvalue\">%d</span></td>\n", bnod.eul_pitc);
+         fprintf(html, "<td class=\"sensordata\">Euler Pitch:<span class=\"sensorvalue\">%f</span></td>\n", bnod.eul_pitc);
          fprintf(html, "</tr></table>\n");
          fclose(html);
       }
@@ -669,31 +654,17 @@ int main(int argc, char *argv[]) {
       }
 
       struct bnodat bnod;
-      res = get_eul(&bnod);
+      res = get_qua(&bnod);
       if(res != 0) {
          printf("Error: Cannot read Quaternation data.\n");
          exit(-1);
       }
 
       /* ----------------------------------------------------------- *
-       * Convert Euler orientation into degrees: 1 degree = 16 LSB   *
-       * ----------------------------------------------------------- */
-      if(verbose) printf("Debug: bnod.quater_w [%d]\n", bnod.quater_w);
-      if(verbose) printf("Debug: bnod.quater_x [%d]\n", bnod.quater_x);
-      if(verbose) printf("Debug: bnod.quater_y [%d]\n", bnod.quater_y);
-      if(verbose) printf("Debug: bnod.quater_z [%d]\n", bnod.quater_z);
-
-      const double scale = (1.0 / (1<<14));
-      float quater_w = (float) bnod.quater_w * scale;
-      float quater_x = (float) bnod.quater_x * scale;
-      float quater_y = (float) bnod.quater_y * scale;
-      float quater_z = (float) bnod.quater_z * scale;
-
-      /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * EUL-H: 8.44 EUL-R: 4088.12 EUL-P: 4080.12 in degrees 0-360  *
+       * QUA-W: -0.91 QUA-X: -0.34 QUA-Y: -0.13 QUA-Z: -0.22         *
        * ----------------------------------------------------------- */
-      printf("QUA-W: %3.2f QUA-X: %3.2f QUA-Y: %3.2f QUA-Z: %3.2f\n", quater_w, quater_x, quater_y, quater_z);
+      printf("QUA-W: %3.2f QUA-X: %3.2f QUA-Y: %3.2f QUA-Z: %3.2f\n", bnod.quater_w, bnod.quater_x, bnod.quater_y, bnod.quater_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -705,13 +676,13 @@ int main(int argc, char *argv[]) {
             exit(-1);
          }
          fprintf(html, "<table><tr>\n");
-         fprintf(html, "<td class=\"sensordata\">Quaternation W:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_w);
+         fprintf(html, "<td class=\"sensordata\">Quaternation W:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.quater_w);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Quaternation X:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_x);
+         fprintf(html, "<td class=\"sensordata\">Quaternation X:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.quater_x);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Quaternation Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_y);
+         fprintf(html, "<td class=\"sensordata\">Quaternation Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.quater_y);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Quaternation Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", quater_z);
+         fprintf(html, "<td class=\"sensordata\">Quaternation Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.quater_z);
          fprintf(html, "</tr></table>\n");
          fclose(html);
       }

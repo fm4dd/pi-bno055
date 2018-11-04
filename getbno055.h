@@ -208,22 +208,28 @@ struct bnocal{
  * on the sensor component type that was requested for reading. *
  * ------------------------------------------------------------ */
 struct bnodat{
-   unsigned int  adata_x;   // accelerometer data, X-axis
-   unsigned int  adata_y;   // accelerometer data, Y-axis
-   unsigned int  adata_z;   // accelerometer data, Z-axis
-   unsigned int  mdata_x;   // magnetometer data, X-axis
-   unsigned int  mdata_y;   // magnetometer data, Y-axis
-   unsigned int  mdata_z;   // magnetometer data, Z-axis
-   unsigned int  gdata_x;   // gyroscope data, X-axis
-   unsigned int  gdata_y;   // gyroscope data, Y-axis
-   unsigned int  gdata_z;   // gyroscope data, Z-axis
-   unsigned int eul_head;   // Euler heading data
-   unsigned int eul_roll;   // Euler roll data
-   unsigned int eul_pitc;   // Euler picth data
-   unsigned int quater_w;   // Quaternation data W
-   unsigned int quater_x;   // Quaternation data X
-   unsigned int quater_y;   // Quaternation data Y
-   unsigned int quater_z;   // Quaternation data Z
+   double adata_x;   // accelerometer data, X-axis
+   double adata_y;   // accelerometer data, Y-axis
+   double adata_z;   // accelerometer data, Z-axis
+   double mdata_x;   // magnetometer data, X-axis
+   double mdata_y;   // magnetometer data, Y-axis
+   double mdata_z;   // magnetometer data, Z-axis
+   double gdata_x;   // gyroscope data, X-axis
+   double gdata_y;   // gyroscope data, Y-axis
+   double gdata_z;   // gyroscope data, Z-axis
+   double eul_head;  // Euler heading data
+   double eul_roll;  // Euler roll data
+   double eul_pitc;  // Euler picth data
+   double quater_w;  // Quaternation data W
+   double quater_x;  // Quaternation data X
+   double quater_y;  // Quaternation data Y
+   double quater_z;  // Quaternation data Z
+   double gravityx;  // Gravity Vector X
+   double gravityy;  // Gravity Vector Y
+   double gravityz;  // Gravity Vector Z
+   double linacc_x;  // Linear Acceleration X
+   double linacc_y;  // Linear Acceleration Y
+   double linacc_z;  // Linear Acceleration Z
 };
 
 /* ------------------------------------------------------------ *
