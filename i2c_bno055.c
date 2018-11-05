@@ -116,7 +116,7 @@ int get_caloffset(struct bnocal *bno_ptr) {
       printf("Error: I2C calibration data read from 0x%02X\n", reg);
       return(-1);
    }
-   if(verbose == 1) printf("Debug: accelerometer data: X [%d][%d] Y [%d][%d] Z [%d][%d]\n",
+   if(verbose == 1) printf("Debug: accelerometer data: X [0x%02X][0x%02X] Y [0x%02X][0x%02X] Z [0x%02X][0x%02X]\n",
 		           data[0], data[1], data[2], data[3], data[4], data[5]);
 
    /* ------------------------------------------------------------ *
@@ -135,38 +135,38 @@ int get_caloffset(struct bnocal *bno_ptr) {
     * assigning magnetometer X-Y-Z offset, offset range is +/-6400 *
     * ------------------------------------------------------------ */
    if(verbose == 1) printf("Debug:  magnetometer offset, range +/-6400: X [%d] Y [%d] Z [%d]\n",
-		           (data[6] + data[7] * 256),
-                           (data[8] + data[9] * 256),
-                           (data[10] + data[11] * 256));
-   bno_ptr->moff_x = (data[6] + data[7] * 256);
-   bno_ptr->moff_y = (data[8] + data[9] * 256);
-   bno_ptr->moff_z = (data[10] + data[11] * 256);
+                           ((int16_t)data[7] << 8) | data[6],
+                           ((int16_t)data[9] << 8) | data[8],
+                           ((int16_t)data[11] << 8) | data[10]);
+   bno_ptr->moff_x = ((int16_t)data[7] << 8) | data[6];
+   bno_ptr->moff_y = ((int16_t)data[9] << 8) | data[8];
+   bno_ptr->moff_z = ((int16_t)data[11] << 8) | data[10];
 
    /* ------------------------------------------------------------ *
     * assigning gyroscope X-Y-Z offset, range depends on dps value *
     * 2000 = +/-32000, 1000 = +/-16000, 500 = +/-8000, etc         *
     * ------------------------------------------------------------ */
    if(verbose == 1) printf("Debug: gyroscope offset: X [%d] Y [%d] Z [%d]\n",
-		           (data[12] + data[13] * 256),
-                           (data[14] + data[15] * 256),
-                           (data[16] + data[17] * 256));
-   bno_ptr->goff_x = (data[12] + data[13] * 256);
-   bno_ptr->goff_y = (data[14] + data[15] * 256);
-   bno_ptr->goff_z = (data[16] + data[17] * 256);
+                           ((int16_t)data[13] << 8) | data[12],
+                           ((int16_t)data[15] << 8) | data[14],
+                           ((int16_t)data[17] << 8) | data[16]);
+   bno_ptr->goff_x = ((int16_t)data[13] << 8) | data[12];
+   bno_ptr->goff_y = ((int16_t)data[15] << 8) | data[14];
+   bno_ptr->goff_z = ((int16_t)data[17] << 8) | data[16];
 
    /* ------------------------------------------------------------ *
     * assigning accelerometer radius, range is +/-1000             *
     * ------------------------------------------------------------ */
    if(verbose == 1) printf("Debug: accelerometer radius, range +/-1000: [%d]\n",
-		           (data[18] + data[19] * 256));
-   bno_ptr->acc_rad = (data[18] + data[19] * 256);
+                           ((int16_t)data[19] << 8) | data[18]);
+   bno_ptr->acc_rad = ((int16_t)data[19] << 8) | data[18];
 
    /* ------------------------------------------------------------ *
     * assigning magnetometer radius, range is +/-960               *
     * ------------------------------------------------------------ */
    if(verbose == 1) printf("Debug:  magnetometer radius, range +/- 960: [%d]\n",
-		           (data[20] + data[21] * 256));
-   bno_ptr->mag_rad = (data[20] + data[21] * 256);
+                           ((int16_t)data[21] << 8) | data[20]);
+   bno_ptr->mag_rad = ((int16_t)data[21] << 8) | data[20];
    return(0);
 }
 
@@ -382,7 +382,7 @@ int get_inf(struct bnoinf *bno_ptr) {
 /* ------------------------------------------------------------ *
  *  get_acc() - read accelerometer data into the global struct  *
  * ------------------------------------------------------------ */
-int get_acc(struct bnodat *bnodat_ptr) {
+int get_acc(struct bnoacc *bnod_ptr) {
    char reg = BNO055_ACCEL_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
@@ -397,22 +397,23 @@ int get_acc(struct bnodat *bnodat_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0];
    if(verbose == 1) printf("Debug: Accelerometer Data X: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnodat_ptr->adata_x = (double) buf;
+   bnod_ptr->adata_x = (double) buf;
 
    buf = ((int16_t)data[3] << 8) | data[2];
    if(verbose == 1) printf("Debug: Accelerometer Data Y: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnodat_ptr->adata_y = (double) buf;
+   bnod_ptr->adata_y = (double) buf;
 
    buf = ((int16_t)data[5] << 8) | data[4];
    if(verbose == 1) printf("Debug: Accelerometer Data Z: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnodat_ptr->adata_z = (double) buf;
+   bnod_ptr->adata_z = (double) buf;
    return(0);
 }
 
 /* ------------------------------------------------------------ *
  *  get_mag() - read magnetometer data into the global struct   *
+ *  Convert magnetometer data in microTesla. 1 microTesla = 16  *
  * ------------------------------------------------------------ */
-int get_mag(struct bnodat *bnodat_ptr) {
+int get_mag(struct bnomag *bnod_ptr) {
    char reg = BNO055_MAG_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
@@ -427,22 +428,22 @@ int get_mag(struct bnodat *bnodat_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0]; 
    if(verbose == 1) printf("Debug: Magnetometer Data X: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnodat_ptr->mdata_x = (double) buf / 1.6;
+   bnod_ptr->mdata_x = (double) buf / 1.6;
 
    buf = ((int16_t)data[3] << 8) | data[2]; 
    if(verbose == 1) printf("Debug: Magnetometer Data Y: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnodat_ptr->mdata_y = (double) buf / 1.6;
+   bnod_ptr->mdata_y = (double) buf / 1.6;
 
    buf = ((int16_t)data[5] << 8) | data[4]; 
    if(verbose == 1) printf("Debug: Magnetometer Data Z: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnodat_ptr->mdata_z = (double) buf / 1.6;
+   bnod_ptr->mdata_z = (double) buf / 1.6;
    return(0);
 }
 
 /* ------------------------------------------------------------ *
  *  get_gyr() - read gyroscope data into the global struct      *
  * ------------------------------------------------------------ */
-int get_gyr(struct bnodat *bnodat_ptr) {
+int get_gyr(struct bnogyr *bnod_ptr) {
    char reg = BNO055_GYRO_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
@@ -457,22 +458,22 @@ int get_gyr(struct bnodat *bnodat_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0];
    if(verbose == 1) printf("Debug: Gyroscope Data X: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnodat_ptr->gdata_x = (double) buf / 16.0;
+   bnod_ptr->gdata_x = (double) buf / 16.0;
 
    buf = ((int16_t)data[3] << 8) | data[2];
    if(verbose == 1) printf("Debug: Gyrosscope Data Y: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnodat_ptr->gdata_y = (double) buf / 16.0;
+   bnod_ptr->gdata_y = (double) buf / 16.0;
 
    buf = ((int16_t)data[5] << 8) | data[4];
    if(verbose == 1) printf("Debug: Gyroscope Data Z: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnodat_ptr->gdata_z = (double) buf / 16.0;
+   bnod_ptr->gdata_z = (double) buf / 16.0;
    return(0);
 }
 
 /* ------------------------------------------------------------ *
  *  get_eul() - read Euler orientation into the global struct   *
  * ------------------------------------------------------------ */
-int get_eul(struct bnodat *bnodat_ptr) {
+int get_eul(struct bnoeul *bnod_ptr) {
    char reg = BNO055_EULER_H_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
@@ -489,22 +490,22 @@ int get_eul(struct bnodat *bnodat_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0]; 
    if(verbose == 1) printf("Debug: Euler Orientation H: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnodat_ptr->eul_head = (double) buf / 16.0;
+   bnod_ptr->eul_head = (double) buf / 16.0;
 
    buf = ((int16_t)data[3] << 8) | data[2]; 
    if(verbose == 1) printf("Debug: Euler Orientation R: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnodat_ptr->eul_roll = (double) buf / 16.0;
+   bnod_ptr->eul_roll = (double) buf / 16.0;
 
    buf = ((int16_t)data[5] << 8) | data[4]; 
    if(verbose == 1) printf("Debug: Euler Orientation P: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnodat_ptr->eul_pitc = (double) buf / 16.0;
+   bnod_ptr->eul_pitc = (double) buf / 16.0;
    return(0);
 }
 
 /* ------------------------------------------------------------ *
  *  get_qua() - read Quaternation data into the global struct   *
  * ------------------------------------------------------------ */
-int get_qua(struct bnodat *bnodat_ptr) {
+int get_qua(struct bnoqua *bnod_ptr) {
    char reg = BNO055_QUATERNION_DATA_W_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
@@ -521,19 +522,83 @@ int get_qua(struct bnodat *bnodat_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0]; 
    if(verbose == 1) printf("Debug: Quaternation W: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnodat_ptr->quater_w = (double) buf / 16384.0;
+   bnod_ptr->quater_w = (double) buf / 16384.0;
 
    buf = ((int16_t)data[3] << 8) | data[2]; 
    if(verbose == 1) printf("Debug: Quaternation X: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnodat_ptr->quater_x = (double) buf / 16384.0;
+   bnod_ptr->quater_x = (double) buf / 16384.0;
 
    buf = ((int16_t)data[5] << 8) | data[4]; 
    if(verbose == 1) printf("Debug: Quaternation Y: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnodat_ptr->quater_y = (double) buf / 16384.0;
+   bnod_ptr->quater_y = (double) buf / 16384.0;
 
    buf = ((int16_t)data[7] << 8) | data[6]; 
    if(verbose == 1) printf("Debug: Quaternation Z: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[6], data[7],buf);
-   bnodat_ptr->quater_z = (double) buf / 16384.0;
+   bnod_ptr->quater_z = (double) buf / 16384.0;
+   return(0);
+}
+
+/* ------------------------------------------------------------ *
+ *  get_gra() - read gravity vector into the global struct      *
+ * ------------------------------------------------------------ */
+int get_gra(struct bnogra *bnod_ptr) {
+   char reg = BNO055_GRAVITY_DATA_X_LSB_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      return(-1);
+   }
+
+   if(verbose == 1) printf("Debug: I2C read 6 bytes starting at register 0x%02X\n", reg);
+
+   unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+   if(read(i2cfd, data, 6) != 6) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      return(-1);
+   }
+
+   int16_t buf = ((int16_t)data[1] << 8) | data[0];
+   if(verbose == 1) printf("Debug: Gravity Vector H: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
+   bnod_ptr->gravityx = (double) buf / 16.0;
+
+   buf = ((int16_t)data[3] << 8) | data[2];
+   if(verbose == 1) printf("Debug: Gravity Vector M: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
+   bnod_ptr->gravityy = (double) buf / 16.0;
+
+   buf = ((int16_t)data[5] << 8) | data[4];
+   if(verbose == 1) printf("Debug: Gravity Vector P: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
+   bnod_ptr->gravityz = (double) buf / 16.0;
+   return(0);
+}
+
+/* ------------------------------------------------------------ *
+ *  get_lin() - read linear acceleration into the global struct *
+ * ------------------------------------------------------------ */
+int get_lin(struct bnolin *bnod_ptr) {
+   char reg = BNO055_LINEAR_ACCEL_DATA_X_LSB_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      return(-1);
+   }
+
+   if(verbose == 1) printf("Debug: I2C read 6 bytes starting at register 0x%02X\n", reg);
+
+   unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+   if(read(i2cfd, data, 6) != 6) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      return(-1);
+   }
+
+   int16_t buf = ((int16_t)data[1] << 8) | data[0];
+   if(verbose == 1) printf("Debug: Linear Acceleration H: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
+   bnod_ptr->linacc_x = (double) buf / 16.0;
+
+   buf = ((int16_t)data[3] << 8) | data[2];
+   if(verbose == 1) printf("Debug: Linear Acceleration M: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
+   bnod_ptr->linacc_y = (double) buf / 16.0;
+
+   buf = ((int16_t)data[5] << 8) | data[4];
+   if(verbose == 1) printf("Debug: Linear Acceleration P: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
+   bnod_ptr->linacc_z = (double) buf / 16.0;
    return(0);
 }
 
@@ -638,7 +703,7 @@ int print_mode(int mode) {
          printf("NDOF_FMC_OFF\n");
          break;
       case 0x0C:
-         printf("NDOF\n");
+         printf("NDOF_FMC\n");
          break;
    }
    return(0);

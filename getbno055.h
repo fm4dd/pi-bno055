@@ -204,29 +204,41 @@ struct bnocal{
 };
 
 /* ------------------------------------------------------------ *
- * BNO055 measurement data struct. Data gets filled in based on *
+ * BNO055 measurement data structs. Data gets filled in based   *
  * on the sensor component type that was requested for reading. *
  * ------------------------------------------------------------ */
-struct bnodat{
+struct bnoacc{
    double adata_x;   // accelerometer data, X-axis
    double adata_y;   // accelerometer data, Y-axis
    double adata_z;   // accelerometer data, Z-axis
+};
+struct bnomag{
    double mdata_x;   // magnetometer data, X-axis
    double mdata_y;   // magnetometer data, Y-axis
    double mdata_z;   // magnetometer data, Z-axis
+};
+struct bnogyr{
    double gdata_x;   // gyroscope data, X-axis
    double gdata_y;   // gyroscope data, Y-axis
    double gdata_z;   // gyroscope data, Z-axis
+};
+struct bnoeul{
    double eul_head;  // Euler heading data
    double eul_roll;  // Euler roll data
    double eul_pitc;  // Euler picth data
+};
+struct bnoqua{
    double quater_w;  // Quaternation data W
    double quater_x;  // Quaternation data X
    double quater_y;  // Quaternation data Y
    double quater_z;  // Quaternation data Z
+};
+struct bnogra{
    double gravityx;  // Gravity Vector X
    double gravityy;  // Gravity Vector Y
    double gravityz;  // Gravity Vector Z
+};
+struct bnolin{
    double linacc_x;  // Linear Acceleration X
    double linacc_y;  // Linear Acceleration Y
    double linacc_z;  // Linear Acceleration Z
@@ -265,9 +277,13 @@ extern int set_defaults();                // sets sensor default values
 extern int get_calstatus(struct bnocal*); // reads calibration status
 extern int get_caloffset(struct bnocal*); // reads calibration values
 extern int get_inf(struct bnoinf*);       // reads sensor information
-extern int get_mag(struct bnodat*);       // reads magnetometer data
-extern int get_eul(struct bnodat*);       // reads euler orientation
-extern int get_qua(struct bnodat*);       // reads quaternation data
+extern int get_acc(struct bnoacc*);       // reads accelerometer data
+extern int get_mag(struct bnomag*);       // reads magnetometer data
+extern int get_gyr(struct bnogyr*);       // reads gyroscope data
+extern int get_eul(struct bnoeul*);       // reads euler orientation
+extern int get_qua(struct bnoqua*);       // reads quaternation data
+extern int get_gra(struct bnogra*);       // reads gravity data
+extern int get_lin(struct bnolin*);       // reads linar acceleration data
 extern int set_mode(opmode_t);            // sets the sensor ops mode
 extern int get_mode();                    // gets the sensor ops mode
 extern int print_mode(int);               // prints ops mode string

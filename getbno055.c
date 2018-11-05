@@ -42,8 +42,8 @@ void usage() {
    static char const usage[] = "Usage: getbno055 [-a hex i2cr-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]\n\
 \n\
 Command line parameters have the following format:\n\
-*  -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
-*  -m   set sensor operational mode. mode arguments:\n\
+   -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
+   -m   set sensor operational mode. mode arguments:\n\
            config   = configuration mode\n\
            acconly  = accelerometer only\n\
            magonly  = magnetometer only\n\
@@ -57,22 +57,22 @@ Command line parameters have the following format:\n\
            m4g      = accelerometer + magnetometer + rel. orientation\n\
            ndof     = accel + magnetometer + gyro + abs. orientation\n\
            ndof_fmc = ndof with fast magnetometer calibration (FMC)\n\
-*  -r   reset sensor\n\
+   -r   reset sensor\n\
    -t   read and output sensor data. data type arguments:\n\
-*          acc = Accelerometer (3 values for X-Y-Z axis)\n\
+           acc = Accelerometer (3 values for X-Y-Z axis)\n\
            gyr = Gyroscope (3 values for X-Y-X axis)\n\
-*          mag = Magnetometer (3 values for X-Y-Z axis)\n\
-*          eul = Orientation E (3 values for H-R-P as Euler angles)\n\
-*          qua = Orientation Q (4 values for W-X-Y-Z as Quaternation)\n\
-           lin = Linear Accel (3 values for X-Y-Z axis)\n\
+           mag = Magnetometer (3 values for X-Y-Z axis)\n\
+           eul = Orientation E (3 values for H-R-P as Euler angles)\n\
+           qua = Orientation Q (4 values for W-X-Y-Z as Quaternation)\n\
            gra = GravityVector (3 values for X-Y-Z axis)\n\
-*          inf = Sensor info (7 values version and state)\n\
-*          cal = Calibration data (9 values for each X-Y-Z)\n\
-   -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
-   -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
-*  -o   output sensor data to HTML table file, requires -t, Example: -o ./getsensor.html\n\
-*  -h   display this message\n\
-*  -v   enable debug output\n\
+*          lin = Linear Accel (3 values for X-Y-Z axis)\n\
+           inf = Sensor info (7 values version and state)\n\
+           cal = Calibration data (9 values for each X-Y-Z)\n\
+*  -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
+*  -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
+   -o   output sensor data to HTML table file, requires -t, Example: -o ./getsensor.html\n\
+   -h   display this message\n\
+   -v   enable debug output\n\
 \n\
 Note: The sensor is executing calibration in the background, but only in fusion mode.\n\
 \n\
@@ -138,7 +138,7 @@ void parseargs(int argc, char* argv[]) {
          // arg -l + calibration file name, type: string
          // loads the sensor calibration from file. example: ./bno055.cal
          case 'l':
-            calflag = 1;
+            calflag = 2;
             if(verbose == 1) printf("Debug: arg -l, value %s\n", optarg);
             strncpy(calfile, optarg, sizeof(calfile));
             break;
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
       else if(strcmp(opr_mode, "compass")  == 0) newmode = compass;
       else if(strcmp(opr_mode, "m4g")      == 0) newmode = m4g;
       else if(strcmp(opr_mode, "ndof")     == 0) newmode = ndof;
-      else if(strcmp(opr_mode, "dnof_fmc") == 0) newmode = ndof_fmc;
+      else if(strcmp(opr_mode, "ndof_fmc") == 0) newmode = ndof_fmc;
       else {
          printf("Error: invalid operations mode %s.\n", opr_mode);
          exit(-1);
@@ -354,7 +354,30 @@ int main(int argc, char *argv[]) {
          printf("Error open %s for writing.\n", calfile);
          exit(-1);
       }
-      exit(0);
+      if(verbose == 1) printf("Debug:  Writing calibration file: [%s]\n", calfile);
+      int bytes;
+      bytes = fprintf(calib, "ACC X:%d Y:%d Z:%d", bnoc.aoff_x, bnoc.aoff_y, bnoc.aoff_z);
+      bytes = bytes + fprintf(calib, " R:%d\n", bnoc.acc_rad);
+      bytes = bytes + fprintf(calib, "MAG X:%d Y:%d Z:%d", bnoc.moff_x, bnoc.moff_y, bnoc.moff_z);
+      bytes = bytes + fprintf(calib, " R:%d\n", bnoc.mag_rad);
+      bytes = bytes + fprintf(calib, "GYR X:%d Y:%d Z:%d\n", bnoc.goff_x, bnoc.goff_y, bnoc.goff_z);
+      fclose(calib);
+      if(verbose == 1) printf("Debug: Bytes to calibration file: [%d]\n", bytes);
+   }
+
+   /* ----------------------------------------------------------- *
+    *  "-l" loads the sensor calibration data from file.          *
+    * ----------------------------------------------------------- */
+    if(calflag == 2) {
+      /* -------------------------------------------------------- *
+       *  Open the calibration data file for writing.             *
+       * -------------------------------------------------------- */
+      FILE *calib;
+      if(! (calib=fopen(calfile, "r"))) {
+         printf("Error reading data from %s.\n", calfile);
+         exit(-1);
+      }
+      if(verbose == 1) printf("Debug: Reading from file %s.\n", calfile);
    }
 
    /* ----------------------------------------------------------- *
@@ -519,8 +542,8 @@ int main(int argc, char *argv[]) {
     *  "-t acc " reads accelerometer data from the sensor.        *
     * ----------------------------------------------------------- */
    if(strcmp(datatype, "acc") == 0) {
-      struct bnodat bnod;
-      res = get_mag(&bnod);
+      struct bnoacc bnod;
+      res = get_acc(&bnod);
       if(res != 0) {
          printf("Error: Cannot read accelerometer data.\n");
          exit(-1);
@@ -553,10 +576,47 @@ int main(int argc, char *argv[]) {
    } /* End reading Accelerometer */
 
    /* ----------------------------------------------------------- *
+    *  "-t gyr" reads gyroscope data from the sensor.             *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "gyr") == 0) {
+      struct bnogyr bnod;
+      res = get_gyr(&bnod);
+      if(res != 0) {
+         printf("Error: Cannot read gyroscope data.\n");
+         exit(-1);
+      }
+
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * GYR-X: 4094.50 GYR-Y: 25.56 GYR-Z: 4067.25                  *
+       * ----------------------------------------------------------- */
+      printf("GYR-X: %3.2f GYR-Y: %3.2f GYR-Z: %3.2f\n", bnod.gdata_x, bnod.gdata_y, bnod.gdata_z);
+
+      if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing gyroscope data           *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Gyroscope X:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.gdata_x);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Gyroscope Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.gdata_y);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Gyroscope Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.gdata_z);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+      }
+   } /* End reading Gyroscope */
+
+   /* ----------------------------------------------------------- *
     *  "-t mag" reads magnetometer data from the sensor.          *
     * ----------------------------------------------------------- */
    if(strcmp(datatype, "mag") == 0) {
-      struct bnodat bnod;
+      struct bnomag bnod;
       res = get_mag(&bnod);
       if(res != 0) {
          printf("Error: Cannot read magnetometer data.\n");
@@ -564,17 +624,10 @@ int main(int argc, char *argv[]) {
       }
 
       /* ----------------------------------------------------------- *
-       * Convert magnetometer data in microTesla. 1 microTesla = 16  *
-       * ----------------------------------------------------------- */
-      float mag_x = (float) bnod.mdata_x / 16.0;
-      float mag_y = (float) bnod.mdata_y / 16.0;
-      float mag_z = (float) bnod.mdata_z / 16.0;
-
-      /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *              
-       * MAG-X: 5.98 MAG-Y: 13.24 MAG-Z: -18.55                      *
+       * MAG-X: 5.98 MAG-Y: 13.24 MAG-Z: -18.55 (in MicroTesla)      *
        * ----------------------------------------------------------- */
-      printf("MAG-X: %3.2f MAG-Y: %3.2f MAG-Z: %3.2f\n", mag_x, mag_y, mag_z);
+      printf("MAG-X: %3.2f MAG-Y: %3.2f MAG-Z: %3.2f\n", bnod.mdata_x, bnod.mdata_y, bnod.mdata_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -586,11 +639,11 @@ int main(int argc, char *argv[]) {
             exit(-1);
          }
          fprintf(html, "<table><tr>\n");
-         fprintf(html, "<td class=\"sensordata\">Magnetometer X:<span class=\"sensorvalue\">%3.2f</span></td>\n", mag_x);
+         fprintf(html, "<td class=\"sensordata\">Magnetometer X:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.mdata_x);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Magnetometer Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", mag_y);
+         fprintf(html, "<td class=\"sensordata\">Magnetometer Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.mdata_y);
          fprintf(html, "<td class=\"sensorspace\"></td>\n");
-         fprintf(html, "<td class=\"sensordata\">Magentometer Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", mag_z);
+         fprintf(html, "<td class=\"sensordata\">Magentometer Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.mdata_z);
          fprintf(html, "</tr></table>\n");
          fclose(html);
       }
@@ -608,7 +661,7 @@ int main(int argc, char *argv[]) {
          exit(-1);
       }
 
-      struct bnodat bnod;
+      struct bnoeul bnod;
       res = get_eul(&bnod);
       if(res != 0) {
          printf("Error: Cannot read Euler orientation data.\n");
@@ -653,7 +706,7 @@ int main(int argc, char *argv[]) {
          exit(-1);
       }
 
-      struct bnodat bnod;
+      struct bnoqua bnod;
       res = get_qua(&bnod);
       if(res != 0) {
          printf("Error: Cannot read Quaternation data.\n");
@@ -687,5 +740,96 @@ int main(int argc, char *argv[]) {
          fclose(html);
       }
    } /* End reading Quaternation data */
+
+   /* ----------------------------------------------------------- *
+    *  "-t gra " reads gravity vector data from the sensor.       *
+    * This requires the sensor to be in fusion mode (mode > 7).   *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "gra") == 0) {
+
+      int mode = get_mode();
+      if(mode < 8) {
+         printf("Error getting Gravity Vector, sensor mode %d is not a fusion mode.\n", mode);
+         exit(-1);
+      }
+
+      struct bnogra bnod;
+      res = get_gra(&bnod);
+      if(res != 0) {
+         printf("Error: Cannot read gravity vector data.\n");
+         exit(-1);
+      }
+
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * GRA-X: 4094.50 GRA-Y: 25.56 GRA-Z: 4067.25                  *
+       * ----------------------------------------------------------- */
+      printf("GRA-X: %3.2f GRA-Y: %3.2f GRA-Z: %3.2f\n", bnod.gravityx, bnod.gravityy, bnod.gravityz);
+
+      if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing gravity vector data      *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Gravity Vector X:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.gravityx);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Gravity Vector Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.gravityy);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Gravity Vector Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.gravityz);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+      }
+   } /* End reading Gravity  Vector */
+
+   /* ----------------------------------------------------------- *
+    *  "-t lin " reads linear acceleration data from the sensor.  *
+    * This requires the sensor to be in fusion mode (mode > 7).   *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "lin") == 0) {
+
+      int mode = get_mode();
+      if(mode < 8) {
+         printf("Error getting Linear Acceleration, sensor mode %d is not a fusion mode.\n", mode);
+         exit(-1);
+      }
+
+      struct bnolin bnod;
+      res = get_lin(&bnod);
+      if(res != 0) {
+         printf("Error: Cannot read linear acceleration data.\n");
+         exit(-1);
+      }
+
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * LIN-X: 4094.50 LIN-Y: 25.56 LIN-Z: 4067.25                  *
+       * ----------------------------------------------------------- */
+      printf("LIN-X: %3.2f LIN-Y: %3.2f LIN-Z: %3.2f\n", bnod.linacc_x, bnod.linacc_y, bnod.linacc_z);
+
+      if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing linear acceleration data *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Linear Acceleration X:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.linacc_x);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Linear Acceleration Y:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.linacc_y);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Linear Acceleration Z:<span class=\"sensorvalue\">%3.2f</span></td>\n", bnod.linacc_z);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+      }
+   } /* End reading Linear Acceleration */
+
    exit(0);
 }
