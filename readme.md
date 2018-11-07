@@ -145,6 +145,19 @@ Debug: bnod.eul_pitc [65397]
 EUL-H: 0.12 EUL-R: -3.31 EUL-P: -15.31
 ```
 
+Writing calibration data to file
+```
+pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t cal -w bno.cfg
+Calibration state: 3 acc [S:1 X:1 Y:65532 Z:65522 R:1000] mag [S:3 X:65484 Y:65496 Z:65476 R:584] gyr [S:3 X:65535 Y:65535 Z:1]
+```
+
+Reading the saved calibration data file content
+```
+pi@nanopi-neo2:~/pi-bno055 $ od -A x -t x1z -v bno.cfg
+000000 01 00 fc ff f2 ff cc ff d8 ff c4 ff ff ff ff ff  >................<
+000010 01 00 e8 03 48 02                                >....H.<
+000016
+```
 ## Usage
 
 Program usage:

@@ -60,17 +60,17 @@ Command line parameters have the following format:\n\
    -r   reset sensor\n\
    -t   read and output sensor data. data type arguments:\n\
            acc = Accelerometer (3 values for X-Y-Z axis)\n\
-           gyr = Gyroscope (3 values for X-Y-X axis)\n\
+           gyr = Gyroscope (3 values for X-Y-Z axis)\n\
            mag = Magnetometer (3 values for X-Y-Z axis)\n\
            eul = Orientation E (3 values for H-R-P as Euler angles)\n\
            qua = Orientation Q (4 values for W-X-Y-Z as Quaternation)\n\
            gra = GravityVector (3 values for X-Y-Z axis)\n\
-*          lin = Linear Accel (3 values for X-Y-Z axis)\n\
-           inf = Sensor info (7 values version and state)\n\
+           lin = Linear Accel (3 values for X-Y-Z axis)\n\
+           inf = Sensor info (23 version and state values)\n\
            cal = Calibration data (9 values for each X-Y-Z)\n\
 *  -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
-*  -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
-   -o   output sensor data to HTML table file, requires -t, Example: -o ./getsensor.html\n\
+   -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
+   -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html\n\
    -h   display this message\n\
    -v   enable debug output\n\
 \n\
@@ -79,9 +79,9 @@ Note: The sensor is executing calibration in the background, but only in fusion 
 Usage examples:\n\
 ./getbno055 -a 0x28 -t inf -v\n\
 ./getbno055 -t cal -v\n\
-./getbno055 -t mag -o ./bno055.html -v\n\
-./getbno055 -s ndof -v\n\
-./getbno055 -w ./bno055.cal -v\n";
+./getbno055 -t eul -o ./bno055.html\n\
+./getbno055 -m ndof\n\
+./getbno055 -w ./bno055.cal\n";
    printf(usage);
 }
 
@@ -339,34 +339,15 @@ int main(int argc, char *argv[]) {
          exit(-1);
       }
       /* -------------------------------------------------------- *
-       *  Read the sensors calibration offset                     *
+       *  Only save data if the sensor is fully calibrated (3)    *
        * -------------------------------------------------------- */
-      res = get_caloffset(&bnoc);
-      if(res != 0) {
-         printf("Error: Cannot read calibration data.\n");
-         exit(-1);
-      }
-      /* -------------------------------------------------------- *
-       *  Open the calibration data file for writing.             *
-       * -------------------------------------------------------- */
-      FILE *calib;
-      if(! (calib=fopen(calfile, "w"))) {
-         printf("Error open %s for writing.\n", calfile);
-         exit(-1);
-      }
-      if(verbose == 1) printf("Debug:  Writing calibration file: [%s]\n", calfile);
-      int bytes;
-      bytes = fprintf(calib, "ACC X:%d Y:%d Z:%d", bnoc.aoff_x, bnoc.aoff_y, bnoc.aoff_z);
-      bytes = bytes + fprintf(calib, " R:%d\n", bnoc.acc_rad);
-      bytes = bytes + fprintf(calib, "MAG X:%d Y:%d Z:%d", bnoc.moff_x, bnoc.moff_y, bnoc.moff_z);
-      bytes = bytes + fprintf(calib, " R:%d\n", bnoc.mag_rad);
-      bytes = bytes + fprintf(calib, "GYR X:%d Y:%d Z:%d\n", bnoc.goff_x, bnoc.goff_y, bnoc.goff_z);
-      fclose(calib);
-      if(verbose == 1) printf("Debug: Bytes to calibration file: [%d]\n", bytes);
+      if(bnoc.scal_st == 3) save_cal(calfile);
+      else printf("Error: Sensor not fully calibrated, abort writing to file %s.\n", calfile);
    }
 
    /* ----------------------------------------------------------- *
     *  "-l" loads the sensor calibration data from file.          *
+    * To update calibration data, sensor must be in CONFIG mode.  *
     * ----------------------------------------------------------- */
     if(calflag == 2) {
       /* -------------------------------------------------------- *
@@ -500,6 +481,7 @@ int main(int argc, char *argv[]) {
             break;
       }
 
+       // TODO - reuse function unit_sel() 
       // Unit Selection bit-0
       printf("MCU Cortex M0 Test = ");
       printf("Accelerometer Unit = ");

@@ -8,6 +8,7 @@
 #define I2CBUS               "/dev/i2c-0"
 #define BNO055_ID            0xA0
 #define POWER_MODE_NORMAL    0x00
+#define CALIB_BYTECOUNT      22
 
 /* Page id register definition */
 #define BNO055_PAGE_ID_ADDR  0x07
@@ -296,4 +297,5 @@ extern int get_remap(char);               // gets the axis remap values
 extern int print_remap_conf(int);         // prints axis configuration
 extern int print_remap_sign(int);         // prints the axis remap +/-
 extern int bno_reset();                   // reset the sensor
-
+extern int save_cal(char*);               // write calibration to file
+extern int load_cal(char*);               // load calibration from file

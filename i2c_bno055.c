@@ -171,7 +171,62 @@ int get_caloffset(struct bnocal *bno_ptr) {
 }
 
 /* ------------------------------------------------------------ *
- * Read 1-byte chip ID from register 0x00 (default: 0xA0)       *
+ * save_cal() - writes calibration data to file for reuse       *
+ * ------------------------------------------------------------ */
+int save_cal(char *file) {
+   /* --------------------------------------------------------- *
+    * Read 22 bytes calibration data from registers 0x55~66,    *
+    * plus 4 reg 0x67~6A with accelerometer/magnetometer radius *
+    * --------------------------------------------------------- */
+   int i = 0;
+   char reg = ACCEL_OFFSET_X_LSB_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      return(-1);
+   }
+
+   if(verbose == 1) printf("Debug: I2C read %d bytes starting at register 0x%02X\n",
+                           CALIB_BYTECOUNT, reg);
+
+   char data[CALIB_BYTECOUNT] = {0};
+   if(read(i2cfd, data, CALIB_BYTECOUNT) != CALIB_BYTECOUNT) {
+      printf("Error: I2C calibration data read from 0x%02X\n", reg);
+      return(-1);
+   }
+   if(verbose == 1) {
+      printf("Debug: Sensor calibration data:\n");
+      while(i<CALIB_BYTECOUNT) {
+         printf(" [0x%02X]", data[i]);
+         i++;
+      }
+      printf("\n");
+   }
+
+   /* -------------------------------------------------------- *
+    *  Open the calibration data file for writing.             *
+    * -------------------------------------------------------- */
+   FILE *calib;
+   if(! (calib=fopen(file, "w"))) {
+      printf("Error: Can't open %s for writing.\n", file);
+      exit(-1);
+   }
+   if(verbose == 1) printf("Debug:  Writing calibration file: [%s]\n", file);
+
+   /* -------------------------------------------------------- *
+    * write the bytes in data[] out                            *
+    * -------------------------------------------------------- */
+   int outbytes = fwrite(data, 1, CALIB_BYTECOUNT, calib);
+   fclose(calib);
+   if(verbose == 1) printf("Debug: Bytes to calibration file: [%d]\n", outbytes);
+   if(outbytes != CALIB_BYTECOUNT) {
+      printf("Error: %d/%d bytes written to file.\n", outbytes, CALIB_BYTECOUNT);
+      return(-1);
+   }
+   return(0);
+}
+
+/* ------------------------------------------------------------ *
+ * decode_units() extract the SI unit config from register 0x3B *
  * ------------------------------------------------------------ */
 int decode_units(int unit_sel) {
    // bit-0
