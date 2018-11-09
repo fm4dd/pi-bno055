@@ -5,7 +5,7 @@
  * author:      05/04/2018 Frank4DD                             *
  * ------------------------------------------------------------ */
 
-#define I2CBUS               "/dev/i2c-0"
+#define I2CBUS               "/dev/i2c-1"
 #define BNO055_ID            0xA0
 #define POWER_MODE_NORMAL    0x00
 //#define CALIB_BYTECOUNT      22
