@@ -10,19 +10,21 @@
 #define POWER_MODE_NORMAL    0x00
 #define CALIB_BYTECOUNT      22
 
-/* Page id register definition */
-#define BNO055_PAGE_ID_ADDR  0x07
-
-/* PAGE0 REGISTER DEFINITION START*/
+/* ------------------------------------------------------------ *
+ * Page-0 registers with general confguration and data output   *
+ * ------------------------------------------------------------ */
 #define BNO055_CHIP_ID_ADDR  0x00
 
+/* Page ID register, for page switching */
+#define BNO055_PAGE_ID_ADDR  0x07
+
 /* Accel data register */
-#define BNO055_ACCEL_DATA_X_LSB_ADDR 0x08
-#define BNO055_ACCEL_DATA_X_MSB_ADDR 0x09
-#define BNO055_ACCEL_DATA_Y_LSB_ADDR 0x0A
-#define BNO055_ACCEL_DATA_Y_MSB_ADDR 0x0B
-#define BNO055_ACCEL_DATA_Z_LSB_ADDR 0x0C
-#define BNO055_ACCEL_DATA_Z_MSB_ADDR 0x0D
+#define BNO055_ACC_DATA_X_LSB_ADDR   0x08
+#define BNO055_ACC_DATA_X_MSB_ADDR   0x09
+#define BNO055_ACC_DATA_Y_LSB_ADDR   0x0A
+#define BNO055_ACC_DATA_Y_MSB_ADDR   0x0B
+#define BNO055_ACC_DATA_Z_LSB_ADDR   0x0C
+#define BNO055_ACC_DATA_Z_MSB_ADDR   0x0D
 
 /* Mag data register */
 #define BNO055_MAG_DATA_X_LSB_ADDR   0x0E
@@ -59,12 +61,12 @@
 #define BNO055_QUATERNION_DATA_Z_MSB_ADDR 0x27
 
 /* Linear acceleration data registers */
-#define BNO055_LINEAR_ACCEL_DATA_X_LSB_ADDR 0x28
-#define BNO055_LINEAR_ACCEL_DATA_X_MSB_ADDR 0x29
-#define BNO055_LINEAR_ACCEL_DATA_Y_LSB_ADDR 0x2A
-#define BNO055_LINEAR_ACCEL_DATA_Y_MSB_ADDR 0x2B
-#define BNO055_LINEAR_ACCEL_DATA_Z_LSB_ADDR 0x2C
-#define BNO055_LINEAR_ACCEL_DATA_Z_MSB_ADDR 0x2D
+#define BNO055_LIN_ACC_DATA_X_LSB_ADDR    0x28
+#define BNO055_LIN_ACC_DATA_X_MSB_ADDR    0x29
+#define BNO055_LIN_ACC_DATA_Y_LSB_ADDR    0x2A
+#define BNO055_LIN_ACC_DATA_Y_MSB_ADDR    0x2B
+#define BNO055_LIN_ACC_DATA_Z_LSB_ADDR    0x2C
+#define BNO055_LIN_ACC_DATA_Z_MSB_ADDR    0x2D
 
 /* Gravity data registers */
 #define BNO055_GRAVITY_DATA_X_LSB_ADDR    0x2E
@@ -122,12 +124,12 @@
 #define BNO055_SIC_MATRIX_8_MSB_ADDR      0x54
 
 /* Accelerometer Offset registers */
-#define ACCEL_OFFSET_X_LSB_ADDR           0x55
-#define ACCEL_OFFSET_X_MSB_ADDR           0x56
-#define ACCEL_OFFSET_Y_LSB_ADDR           0x57
-#define ACCEL_OFFSET_Y_MSB_ADDR           0x58
-#define ACCEL_OFFSET_Z_LSB_ADDR           0x59
-#define ACCEL_OFFSET_Z_MSB_ADDR           0x5A
+#define ACC_OFFSET_X_LSB_ADDR             0x55
+#define ACC_OFFSET_X_MSB_ADDR             0x56
+#define ACC_OFFSET_Y_LSB_ADDR             0x57
+#define ACC_OFFSET_Y_MSB_ADDR             0x58
+#define ACC_OFFSET_Z_LSB_ADDR             0x59
+#define ACC_OFFSET_Z_MSB_ADDR             0x5A
  
 /* Magnetometer Offset registers */
 #define MAG_OFFSET_X_LSB_ADDR             0x5B
@@ -150,6 +152,16 @@
 #define ACCEL_RADIUS_MSB_ADDR             0x68
 #define MAG_RADIUS_LSB_ADDR               0x69
 #define MAG_RADIUS_MSB_ADDR               0x6A
+
+/* ------------------------------------------------------------ *
+ * Page-1 contains sensor component specific confguration data  *
+ * ------------------------------------------------------------ */
+#define BNO055_ACC_CONFIG_ADDR            0x08
+#define BNO055_MAG_CONFIG_ADDR            0x09
+#define BNO055_GYR_CONFIG0_ADDR           0x0A
+#define BNO055_GYR_CONFIG1_ADDR           0x0B
+#define BNO055_ACC_SLEEP_CONFIG_ADDR      0x0C
+#define BNO055_GYR_SLEEP_CONFIG_ADDR      0x0D
 
 /* ------------------------------------------------------------ *
  * global variables                                             *
@@ -246,6 +258,29 @@ struct bnolin{
 };
 
 /* ------------------------------------------------------------ *
+ * BNO055 accelerometer gyroscope magnetometer config structs   *
+ * ------------------------------------------------------------ */
+struct bnoaconf{
+   int pwrmode;      // p-1 reg 0x08 accelerometer power mode
+   int bandwth;      // p-1 reg 0x08 accelerometer bandwidth
+   int range;        // p-1 reg 0x08 accelerometer rate
+   int slpmode;      // p-1 reg 0x0C accelerometer sleep mode
+   int slpdur;       // p-1 reg 0x0C accelerometer sleep duration
+};
+struct bnomconf{
+   int pwrmode;      // p-1 reg 0x09 magnetometer power mode
+   int oprmode;      // p-1 reg 0x09 magnetometer operation
+   int outrate;      // p-1 reg 0x09 magnetometer output rate
+};
+struct bnogconf{
+   int pwrmode;      // p-1 reg 0x0B gyroscope power mode
+   int bandwth;      // p-1 reg 0x0A gyroscope bandwidth
+   int range;        // p-1 reg 0x0A gyroscope range
+   int slpdur;       // p-1 reg 0x0D gyroscope sleep duration
+   int aslpdur;      // p-1 reg 0x0D gyroscope auto sleep dur
+};
+
+/* ------------------------------------------------------------ *
  * Operations and power mode, name to value translation         *
  * ------------------------------------------------------------ */
 typedef enum {
@@ -273,29 +308,39 @@ typedef enum {
 /* ------------------------------------------------------------ *
  * external function prototypes for I2C bus communication code  *
  * ------------------------------------------------------------ */
-extern void get_i2cbus(char*);            // gets the I2C bus file handle
-extern int set_defaults();                // sets sensor default values
-extern int get_calstatus(struct bnocal*); // reads calibration status
-extern int get_caloffset(struct bnocal*); // reads calibration values
-extern int get_inf(struct bnoinf*);       // reads sensor information
-extern int get_acc(struct bnoacc*);       // reads accelerometer data
-extern int get_mag(struct bnomag*);       // reads magnetometer data
-extern int get_gyr(struct bnogyr*);       // reads gyroscope data
-extern int get_eul(struct bnoeul*);       // reads euler orientation
-extern int get_qua(struct bnoqua*);       // reads quaternation data
-extern int get_gra(struct bnogra*);       // reads gravity data
-extern int get_lin(struct bnolin*);       // reads linar acceleration data
-extern int set_mode(opmode_t);            // sets the sensor ops mode
-extern int get_mode();                    // gets the sensor ops mode
-extern int print_mode(int);               // prints ops mode string
-extern int set_power(power_t);            // sets the sensor power mode
-extern int get_power();                   // gets the sensor power mode
-extern int print_power(int);              // prints power mode string
-extern int get_sstat();                   // gets system status code
-extern int print_sstat(int);              // prints system status string
-extern int get_remap(char);               // gets the axis remap values
-extern int print_remap_conf(int);         // prints axis configuration
-extern int print_remap_sign(int);         // prints the axis remap +/-
+extern void get_i2cbus(char*);            // get the I2C bus file handle
+extern int set_defaults();                // set sensor default values
+extern int get_calstatus(struct bnocal*); // read calibration status
+extern int get_caloffset(struct bnocal*); // read calibration values
+extern int get_inf(struct bnoinf*);       // read sensor information
+extern int get_acc(struct bnoacc*);       // read accelerometer data
+extern int get_mag(struct bnomag*);       // read magnetometer data
+extern int get_gyr(struct bnogyr*);       // read gyroscope data
+extern int get_eul(struct bnoeul*);       // read euler orientation
+extern int get_qua(struct bnoqua*);       // read quaternation data
+extern int get_gra(struct bnogra*);       // read gravity data
+extern int get_lin(struct bnolin*);       // read linar acceleration data
+extern int set_mode(opmode_t);            // set the sensor ops mode
+extern int get_mode();                    // get the sensor ops mode
+extern int print_mode(int);               // print ops mode string
+extern void print_unit(int);              // print SI unit configuration
+extern int set_power(power_t);            // set the sensor power mode
+extern int get_power();                   // get the sensor power mode
+extern int print_power(int);              // print power mode string
+extern int get_sstat();                   // get system status code
+extern int print_sstat(int);              // print system status string
+extern int get_remap(char);               // get the axis remap values
+extern int print_remap_conf(int);         // print axis configuration
+extern int print_remap_sign(int);         // print the axis remap +/-
 extern int bno_reset();                   // reset the sensor
 extern int save_cal(char*);               // write calibration to file
 extern int load_cal(char*);               // load calibration from file
+extern int get_acc_conf(struct bnoaconf*);// get accelerometer config
+extern int get_mag_conf(struct bnomconf*);// get magnetometer config
+extern int get_gyr_conf(struct bnogconf*);// get gyroscope config
+extern int set_acc_conf();                // set accelerometer config
+extern int set_mag_conf();                // set magnetometer config
+extern int set_gyr_conf();                // set gyroscope config
+extern void print_acc_conf();             // print accelerometer config
+extern void print_mag_conf();             // print magnetometer config
+extern void print_gyr_conf();             // print gyroscope config

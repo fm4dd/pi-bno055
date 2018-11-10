@@ -30,6 +30,7 @@ int outflag = 0;
 int calflag = 0;
 int resflag = 0;
 char opr_mode[9] = {0};
+char pwr_mode[8] = {0};
 char datatype[256];
 char senaddr[256] = "0x28";
 char htmfile[256];
@@ -51,23 +52,27 @@ Command line parameters have the following format:\n\
            accmag   = accelerometer + magnetometer\n\
            accgyro  = accelerometer + gyroscope\n\
            maggyro  = magetometer + gyroscope\n\
-           amg      = accelerometer + magnetoscope + gyro\n\
-           imu      = accelerometer + gyro + rel. orientation\n\
-           compass  = accelerometer + magnetometer + abs. orientation\n\
-           m4g      = accelerometer + magnetometer + rel. orientation\n\
-           ndof     = accel + magnetometer + gyro + abs. orientation\n\
-           ndof_fmc = ndof with fast magnetometer calibration (FMC)\n\
+           amg      = accelerometer + magnetometer + gyroscope\n\
+           imu      = accelerometer + gyroscope fusion -> rel. orientation\n\
+           compass  = accelerometer + magnetometer fusion -> abs. orientation\n\
+           m4g      = accelerometer + magnetometer fusion -> rel. orientation\n\
+           ndof     = accelerometer + mag + gyro fusion -> abs. orientation\n\
+           ndof_fmc = ndof, using fast magnetometer calibration (FMC)\n\
+   -p   set sensor power mode. mode arguments:\n\
+          normal    = required sensors and MCU always on (default)\n\
+          low       = enter sleep mode during motion inactivity\n\
+          suspend   = sensor paused, all parts put to sleep\n\
    -r   reset sensor\n\
    -t   read and output sensor data. data type arguments:\n\
-           acc = Accelerometer (3 values for X-Y-Z axis)\n\
-           gyr = Gyroscope (3 values for X-Y-Z axis)\n\
-           mag = Magnetometer (3 values for X-Y-Z axis)\n\
-           eul = Orientation E (3 values for H-R-P as Euler angles)\n\
-           qua = Orientation Q (4 values for W-X-Y-Z as Quaternation)\n\
-           gra = GravityVector (3 values for X-Y-Z axis)\n\
-           lin = Linear Accel (3 values for X-Y-Z axis)\n\
+           acc = Accelerometer (X-Y-Z axis values)\n\
+           gyr = Gyroscope (X-Y-Z axis values)\n\
+           mag = Magnetometer (X-Y-Z axis values)\n\
+           eul = Orientation E (H-R-P values as Euler angles)\n\
+           qua = Orientation Q (W-X-Y-Z values as Quaternation)\n\
+           gra = GravityVector (X-Y-Z axis values)\n\
+           lin = Linear Accel (X-Y-Z axis values)\n\
            inf = Sensor info (23 version and state values)\n\
-           cal = Calibration data (9 values for each X-Y-Z)\n\
+           cal = Calibration data (mag, gyro and accel calibration values)\n\
 *  -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
    -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
    -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html\n\
@@ -94,7 +99,7 @@ void parseargs(int argc, char* argv[]) {
 
    if(argc == 1) { usage(); exit(-1); }
 
-   while ((arg = (int) getopt (argc, argv, "a:m:rt:l:w:o:hv")) != -1) {
+   while ((arg = (int) getopt (argc, argv, "a:m:p:rt:l:w:o:hv")) != -1) {
       switch (arg) {
          // arg -v verbose, type: flag, optional
          case 'v':
@@ -111,10 +116,16 @@ void parseargs(int argc, char* argv[]) {
             strncpy(senaddr, optarg, sizeof(senaddr));
             break;
 
-         // arg -m + sets operations mode, type: string
+         // arg -m sets operations mode, type: string
          case 'm':
             if(verbose == 1) printf("Debug: arg -m, value %s\n", optarg);
             strncpy(opr_mode, optarg, sizeof(opr_mode));
+            break;
+
+         // arg -p sets power mode, type: string
+         case 'p':
+            if(verbose == 1) printf("Debug: arg -p, value %s\n", optarg);
+            strncpy(pwr_mode, optarg, sizeof(pwr_mode));
             break;
 
          // arg -r
@@ -326,6 +337,32 @@ int main(int argc, char *argv[]) {
    }
 
    /* ----------------------------------------------------------- *
+    *  "-p" set the sensor power mode and exit the program        *
+    * ----------------------------------------------------------- */
+   if(strlen(pwr_mode) > 0) {
+      power_t newmode;
+      if(strcmp(pwr_mode, "normal")   == 0) newmode = normal;
+      else if(strcmp(pwr_mode, "low")  == 0) newmode = low;
+      else if(strcmp(pwr_mode, "suspend")  == 0) newmode = suspend;
+      else {
+         printf("Error: invalid power mode %s.\n", pwr_mode);
+         exit(-1);
+      }
+
+      if(newmode == get_power()) {
+         if(verbose == 1) printf("Debug: Sensor already in mode %s [0x%02X].\n", pwr_mode, newmode);
+         exit(0);
+      }
+
+      res = set_power(newmode);
+      if(res != 0) {
+         printf("Error: could not set power mode %s [0x%02X].\n", pwr_mode, newmode);
+         exit(-1);
+      }
+      exit(0);
+   }
+
+   /* ----------------------------------------------------------- *
     *  "-w" writes sensor calibration data to file.               *
     * ----------------------------------------------------------- */
     if(calflag == 1) {
@@ -481,39 +518,18 @@ int main(int argc, char *argv[]) {
             break;
       }
 
-       // TODO - reuse function unit_sel() 
-      // Unit Selection bit-0
-      printf("MCU Cortex M0 Test = ");
-      printf("Accelerometer Unit = ");
-      if((bnoi.unitsel >> 0) & 0x01) printf("mg\n");
-      else printf("m/s2\n");
+      print_unit(bnoi.unitsel);
 
-      // Unit Selection bit-1
-      printf("    Gyroscope Unit = ");
-      if((bnoi.unitsel >> 1) & 0x01) printf("rps\n");
-      else printf("dps\n");
+      printf("Sensor Temperature = ");
+      if(bnoi.opr_mode > 0) {
+         if((bnoi.unitsel >> 4) & 0x01) printf("%d°F\n", bnoi.temp_val);
+         else printf("%d°C\n",bnoi.temp_val);
+      }
+      else  printf("no data in CONFIG mode\n");
 
-      // Unit Selection bit-2
-      printf("        Euler Unit = ");
-      if((bnoi.unitsel >> 2) & 0x01) printf("Radians\n");
-      else printf("Degrees\n");
-
-      // Unit Selection bit-3: unused
-      // Unit Selection bit-4
-      printf("  Temperature Unit = ");
-      if((bnoi.unitsel >> 4) & 0x01) printf("Fahrenheit\n");
-      else printf("Celsius\n");
-
-      // Unit Selection bit-5: unused
-      // Unit Selection bit-6: unused
-      // Unit Selection bit-7
-      printf("  Orientation Mode = ");
-      if((bnoi.unitsel >> 7) & 0x01) printf("Android\n");
-      else printf("Windows\n");
-
-      printf("Sensor Temperature = %d", bnoi.temp_val);
-      if((bnoi.unitsel >> 4) & 0x01) printf("°F\n");
-      else printf("°C\n");
+      printf("\n----------------------------------------------\n");
+      struct bnoaconf bnoac;
+      if(get_acc_conf(&bnoac) == 0) print_acc_conf(&bnoac);
 
       printf("\n----------------------------------------------\n");
       print_calstat();

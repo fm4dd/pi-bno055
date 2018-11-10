@@ -35,29 +35,10 @@ cc i2c_bno055.o getbno055.o -o getbno055
 
 ## Example output
 
-Running the program, extracting the sensor verion and configuration information (verbose):
+Running the program, extracting the sensor version and configuration information:
 ```
 pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t inf -v
-Debug: ts=[1540717435] date=Sun Oct 28 18:03:55 2018
-Debug: Sensor address: [0x28]
-Debug: Sensor CHIP ID: [0xA0]
-Debug: Sensor  ACC ID: [0xFB]
-Debug: Sensor  MAG ID: [0x32]
-Debug: Sensor  GYR ID: [0x0F]
-Debug: SW  Rev-ID LSB: [0x11]
-Debug: SW  Rev-ID MSB: [0x03]
-Debug: Bootloader Ver: [0x15]
-Debug: Operation Mode: [0x0B]
-Debug:     Power Mode: [0x00] 2bit [0x00]
-Debug: Axis Remap 'c': [0x24]
-Debug: Axis Remap 's': [0x00]
-Debug:  System Status: [0x05]
-Debug: Self-Test Mode: [0x0F] 4bit [0x0F]
-Debug: Internal Error: [0x00]
-Debug: UnitDefinition: [0x80]
-Debug:    Temperature: [0x1C] [28°C]
-
-BN0055 Information at Sun Oct 28 18:03:55 2018
+BN0055 Information at Sat Nov 10 16:12:14 2018
 ----------------------------------------------
    Chip Version ID = 0xA0
   Accelerometer ID = 0xFB
@@ -74,21 +55,23 @@ Accelerometer Test = OK
     Gyroscope Test = OK
 MCU Cortex M0 Test = OK
  System Error Code = No Error
-MCU Cortex M0 Test = Accelerometer Unit = m/s2
+Acceleration Unit  = m/s2
     Gyroscope Unit = dps
         Euler Unit = Degrees
   Temperature Unit = Celsius
-  Orientation Mode = Android
-Sensor Temperature = 28°C
+  Orientation Mode = Windows
+Sensor Temperature = 30°C
 
 ----------------------------------------------
-Debug: sensor system calibration: [3]
-Debug:     gyroscope calibration: [3]
-Debug: accelerometer calibration: [0]
-Debug:  magnetometer calibration: [3]
+Accelerometer  Power = NORMAL
+Accelerometer Bwidth = 7.81Hz
+Accelerometer GRange = 2G
+Accelerometer  Sleep = event-driven, 0.5ms
+
+----------------------------------------------
 Sensor System Calibration = Fully calibrated
     Gyroscope Calibration = Fully calibrated
-Accelerometer Calibration = Uncalibrated
+Accelerometer Calibration = Minimal Calibrated
  Magnetometer Calibration = Fully calibrated
 
 ```
@@ -175,26 +158,30 @@ Command line parameters have the following format:
            accmag   = accelerometer + magnetometer
            accgyro  = accelerometer + gyroscope
            maggyro  = magetometer + gyroscope
-           amg      = accelerometer + magnetoscope + gyro
-           imu      = accelerometer + gyro + rel. orientation
-           compass  = accelerometer + magnetometer + abs. orientation
-           m4g      = accelerometer + magnetometer + rel. orientation
-           ndof     = accel + magnetometer + gyro + abs. orientation
-           ndof_fmc = ndof with fast magnetometer calibration (FMC)
+           amg      = accelerometer + magnetometer + gyroscope
+           imu      = accelerometer + gyroscope fusion -> rel. orientation
+           compass  = accelerometer + magnetometer fusion -> abs. orientation
+           m4g      = accelerometer + magnetometer fusion -> rel. orientation
+           ndof     = accelerometer + mag + gyro fusion -> abs. orientation
+           ndof_fmc = ndof, using fast magnetometer calibration (FMC)
+   -p   set sensor power mode. mode arguments:
+          normal    = required sensors and MCU always on (default)
+          low       = enter sleep mode during motion inactivity
+          suspend   = sensor paused, all parts put to sleep
    -r   reset sensor
    -t   read and output sensor data. data type arguments:
-           acc = Accelerometer (3 values for X-Y-Z axis)
-           gyr = Gyroscope (3 values for X-Y-X axis)
-           mag = Magnetometer (3 values for X-Y-Z axis)
-           eul = Orientation E (3 values for H-R-P as Euler angles)
-           qua = Orientation Q (4 values for W-X-Y-Z as Quaternation)
-           lin = Linear Accel (3 values for X-Y-Z axis)
-           gra = GravityVector (3 values for X-Y-Z axis)
-           inf = Sensor info (7 values version and state)
-           cal = Calibration data (9 values for each X-Y-Z)
-   -l   load sensor calibration data from file, Example -l ./bno055.cal
+           acc = Accelerometer (X-Y-Z axis values)
+           gyr = Gyroscope (X-Y-Z axis values)
+           mag = Magnetometer (X-Y-Z axis values)
+           eul = Orientation E (H-R-P values as Euler angles)
+           qua = Orientation Q (W-X-Y-Z values as Quaternation)
+           gra = GravityVector (X-Y-Z axis values)
+           lin = Linear Accel (X-Y-Z axis values)
+           inf = Sensor info (23 version and state values)
+           cal = Calibration data (mag, gyro and accel calibration values)
+*  -l   load sensor calibration data from file, Example -l ./bno055.cal
    -w   write sensor calibration data to file, Example -w ./bno055.cal
-   -o   output sensor data to HTML table file, requires -t, Example: -o ./getsensor.html
+   -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html
    -h   display this message
    -v   enable debug output
 
@@ -203,7 +190,7 @@ Note: The sensor is executing calibration in the background, but only in fusion 
 Usage examples:
 ./getbno055 -a 0x28 -t inf -v
 ./getbno055 -t cal -v
-./getbno055 -t mag -o ./bno055.html -v
-./getbno055 -s ndof -v
-./getbno055 -w ./bno055.cal -v
+./getbno055 -t eul -o ./bno055.html
+./getbno055 -m ndof
+./getbno055 -w ./bno055.cal
 ```

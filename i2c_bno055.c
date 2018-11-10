@@ -103,7 +103,7 @@ int get_caloffset(struct bnocal *bno_ptr) {
  * Calibration offset is stored in 3x6 (18) registers 0x55~0x66 *
  * plus 4 registers 0x67~0x6A accelerometer/magnetometer radius *
  * ------------------------------------------------------------ */
-   char reg = ACCEL_OFFSET_X_LSB_ADDR;
+   char reg = ACC_OFFSET_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -179,7 +179,7 @@ int save_cal(char *file) {
     * plus 4 reg 0x67~6A with accelerometer/magnetometer radius *
     * --------------------------------------------------------- */
    int i = 0;
-   char reg = ACCEL_OFFSET_X_LSB_ADDR;
+   char reg = ACC_OFFSET_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -226,40 +226,64 @@ int save_cal(char *file) {
 }
 
 /* ------------------------------------------------------------ *
- * decode_units() extract the SI unit config from register 0x3B *
+ * load_cal() load previously saved calibration data from file  *
  * ------------------------------------------------------------ */
-int decode_units(int unit_sel) {
+int load_cal(char *file) {
+   /* -------------------------------------------------------- *
+    *  Open the calibration data file for reading.             *
+    * -------------------------------------------------------- */
+   FILE *calib;
+   if(! (calib=fopen(file, "r"))) {
+      printf("Error: Can't open %s for reading.\n", file);
+      exit(-1);
+   }
+   if(verbose == 1) printf("Debug:  Reading calibration file: [%s]\n", file);
+
+   /* -------------------------------------------------------- *
+    * read 22 bytes from file into data[]                      *
+    * -------------------------------------------------------- */
+   char data[CALIB_BYTECOUNT] = {0};
+   int inbytes = fread(data, 1, CALIB_BYTECOUNT, calib);
+   fclose(calib);
+
+   if(inbytes != CALIB_BYTECOUNT) {
+      printf("Error: %d/%d bytes read to file.\n", inbytes, CALIB_BYTECOUNT);
+      return(-1);
+   }
+   return(0);
+}
+
+/* ------------------------------------------------------------ *
+ * print_unit() - Extract the SI unit config from register 0x3B *
+ * ------------------------------------------------------------ */
+void print_unit(int unit_sel) {
    // bit-0
-   printf("Acceleration Unit: ");
+   printf("Acceleration Unit  = ");
    if((unit_sel >> 0) & 0x01) printf("mg\n");
    else printf("m/s2\n");
 
    // bit-1
-   printf("Gyroscope Unit: ");
+   printf("    Gyroscope Unit = ");
    if((unit_sel >> 1) & 0x01) printf("rps\n");
    else printf("dps\n");
 
    // bit-2
-   printf("Euler Unit: ");
+   printf("        Euler Unit = ");
    if((unit_sel >> 2) & 0x01) printf("Radians\n");
    else printf("Degrees\n");
 
    // bit-3: unused
-
    // bit-4
-   printf("Temperature Unit: ");
+   printf("  Temperature Unit = ");
    if((unit_sel >> 4) & 0x01) printf("Fahrenheit\n");
    else printf("Celsius\n");
 
    // bit-5: unused
    // bit-6: unused
-
    // bit-7
-   printf("Orientation Mode: ");
+   printf("  Orientation Mode = ");
    if((unit_sel >> 3) & 0x01) printf("Android\n");
    else printf("Windows\n");
-
-   return(0);
 }
 
 /* ------------------------------------------------------------ *
@@ -438,7 +462,7 @@ int get_inf(struct bnoinf *bno_ptr) {
  *  get_acc() - read accelerometer data into the global struct  *
  * ------------------------------------------------------------ */
 int get_acc(struct bnoacc *bnod_ptr) {
-   char reg = BNO055_ACCEL_DATA_X_LSB_ADDR;
+   char reg = BNO055_ACC_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -629,7 +653,7 @@ int get_gra(struct bnogra *bnod_ptr) {
  *  get_lin() - read linear acceleration into the global struct *
  * ------------------------------------------------------------ */
 int get_lin(struct bnolin *bnod_ptr) {
-   char reg = BNO055_LINEAR_ACCEL_DATA_X_LSB_ADDR;
+   char reg = BNO055_LIN_ACC_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -675,7 +699,10 @@ int set_mode(opmode_t newmode) {
          printf("Error: I2C write failure for register 0x%02X\n", data[0]);
          return(-1);
       }
-      usleep(30 * 1000);
+      /* --------------------------------------------------------- *
+       * switch time: any->config needs 7ms + small buffer = 10ms  *
+       * --------------------------------------------------------- */
+      usleep(10 * 1000);
    }
 
    data[1] = newmode;
@@ -684,7 +711,10 @@ int set_mode(opmode_t newmode) {
       printf("Error: I2C write failure for register 0x%02X\n", data[0]);
       return(-1);
    }
-   usleep(30 * 1000);
+   /* --------------------------------------------------------- *
+    * switch time: config->any needs 19ms + small buffer = 25ms *
+    * --------------------------------------------------------- */
+   usleep(25 * 1000);
 
    if(get_mode() == newmode) return(0);
    else return(-1);
@@ -1009,4 +1039,196 @@ int print_remap_sign(int mode) {
          break;
    }
    return(0);
+}
+
+/* ------------------------------------------------------------ *
+ * set_page0() - Set page ID = 0 to set default register access *
+ * ------------------------------------------------------------ */
+int set_page0() {
+   char data[2] = {0};
+   data[0] = BNO055_PAGE_ID_ADDR;
+   data[1] = 0x0;
+   if(verbose == 1) printf("Debug: write page-ID: [0x%02X] to register [0x%02X]\n", data[1], data[0]);
+   if(write(i2cfd, data, 2) != 2) {
+      printf("Error: I2C write failure for register 0x%02X\n", data[0]);
+      return(-1);
+   }
+   return(0);
+}
+
+/* ------------------------------------------------------------ *
+ * set_page1() - Set page ID = 1 to switch the register access  *
+ * ------------------------------------------------------------ */
+int set_page1() {
+   char data[2] = {0};
+   data[0] = BNO055_PAGE_ID_ADDR;
+   data[1] = 0x1;
+   if(verbose == 1) printf("Debug: write page-ID: [0x%02X] to register [0x%02X]\n", data[1], data[0]);
+   if(write(i2cfd, data, 2) != 2) {
+      printf("Error: I2C write failure for register 0x%02X\n", data[0]);
+      return(-1);
+   }
+   return(0);
+}
+
+/* ------------------------------------------------------------ *
+ * get_acc_conf() read accelerometer config into global struct  *
+ * Requires switching register page 0->1 and back after reading *
+ * ------------------------------------------------------------ */
+int get_acc_conf(struct bnoaconf *bnoc_ptr) {
+
+   set_page1();
+   char reg = BNO055_ACC_CONFIG_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      set_page0();
+      return(-1);
+   }
+
+   char data;
+   if(read(i2cfd, &data, 1) != 1) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      set_page0();
+      return(-1);
+   }
+
+   bnoc_ptr->range   = (data & 0b00000011) >> 2; // accel range
+   if(verbose == 1) printf("Debug:       accelerometer range: [%d]\n", bnoc_ptr->pwrmode);
+   bnoc_ptr->bandwth = (data & 0b00011100) >> 4; // accel bandwidth
+   if(verbose == 1) printf("Debug:   accelerometer bandwidth: [%d]\n", bnoc_ptr->bandwth);
+   bnoc_ptr->pwrmode = (data & 0b11100000) >> 6; // accel power mode
+   if(verbose == 1) printf("Debug:  accelerometer power mode: [%d]\n", bnoc_ptr->pwrmode);
+
+   reg = BNO055_ACC_SLEEP_CONFIG_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      set_page0();
+      return(-1);
+   }
+
+   data = 0;
+   if(read(i2cfd, &data, 1) != 1) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      set_page0();
+      return(-1);
+   }
+
+   bnoc_ptr->slpmode = (data & 0b00000011) >> 2; // accel sleep mode
+   if(verbose == 1) printf("Debug:  accelerometer sleep mode: [%d]\n", bnoc_ptr->slpmode);
+   bnoc_ptr->slpdur = (data & 0b00011100) >> 4; // accel sleep duration
+   if(verbose == 1) printf("Debug:   accelerometer sleep dur: [%d]\n", bnoc_ptr->slpdur);
+
+   set_page0();
+   return(0);
+}
+
+/* ----------------------------------------------------------- *
+ *  print_acc_conf() - print accelerometer configuration       *
+ * ----------------------------------------------------------- */
+void print_acc_conf(struct bnoaconf *bnoc_ptr) {
+   printf("Accelerometer  Power = ");
+   switch(bnoc_ptr->pwrmode) {
+      case 0:
+         printf("NORMAL\n");
+         break;
+      case 1:
+         printf("SUSPEND\n");
+         break;
+      case 2:
+         printf("LOW POWER1\n");
+         break;
+      case 3:
+         printf("STANDBY\n");
+         break;
+      case 4:
+         printf("LOW POWER2\n");
+         break;
+      case 5:
+         printf("DEEP SUSPEND\n");
+         break;
+   }
+   printf("Accelerometer Bwidth = ");
+   switch(bnoc_ptr->bandwth) {
+     case 0:
+         printf("7.81Hz\n");
+         break;
+      case 1:
+         printf("15.63Hz\n");
+         break;
+      case 2:
+         printf("31.25Hz\n");
+         break;
+      case 3:
+         printf("62.5Hz\n");
+         break;
+      case 4:
+         printf("125Hz\n");
+         break;
+      case 5:
+         printf("250Hz\n");
+         break;
+      case 6:
+         printf("500Hz\n");
+         break;
+      case 7:
+         printf("1KHz\n");
+         break;
+   }
+   printf("Accelerometer GRange = ");
+   switch(bnoc_ptr->range) {
+      case 0:
+         printf("2G\n");
+         break;
+      case 1:
+         printf("4G\n");
+         break;
+      case 2:
+         printf("8G\n");
+         break;
+      case 3:
+         printf("16G\n");
+         break;
+   }
+   printf("Accelerometer  Sleep = ");
+   switch(bnoc_ptr->slpmode) {
+      case 0:
+         printf("event-driven, ");
+         break;
+      case 1:
+         printf("equidistant sampling, ");
+         break;
+   }
+   if(bnoc_ptr->slpdur < 6) printf("0.5ms\n");
+   else switch(bnoc_ptr->slpdur) {
+      case 6:
+         printf("1ms\n");
+         break;
+      case 7:
+         printf("2ms\n");
+         break;
+      case 8:
+         printf("4ms\n");
+         break;
+      case 9:
+         printf("6ms\n");
+         break;
+      case 10:
+         printf("10ms\n");
+         break;
+      case 11:
+         printf("25ms\n");
+         break;
+      case 12:
+         printf("50ms\n");
+         break;
+      case 13:
+         printf("100ms\n");
+         break;
+      case 14:
+         printf("500ms\n");
+         break;
+      case 15:
+         printf("1s\n");
+         break;
+   }
 }
