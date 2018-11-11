@@ -98,32 +98,45 @@ int get_calstatus(struct bnocal *bno_ptr) {
    return(0);
 }
 
-int get_caloffset(struct bnocal *bno_ptr) {
 /* ------------------------------------------------------------ *
  * Calibration offset is stored in 3x6 (18) registers 0x55~0x66 *
  * plus 4 registers 0x67~0x6A accelerometer/magnetometer radius *
  * ------------------------------------------------------------ */
+int get_caloffset(struct bnocal *bno_ptr) {
+   /* --------------------------------------------------------- *
+    * Registers may not update in fusion mode, switch to CONFIG *
+    * --------------------------------------------------------- */
+   opmode_t oldmode = get_mode();
+   set_mode(config);
+
    char reg = ACC_OFFSET_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
    }
 
-   if(verbose == 1) printf("Debug: I2C read 22 bytes starting at register 0x%02X\n", reg);
+   if(verbose == 1) printf("Debug: I2C read %d bytes starting at register 0x%02X\n", CALIB_BYTECOUNT, reg);
 
-   char data[22] = {0};
-   if(read(i2cfd, data, 22) != 22) {
+   char data[CALIB_BYTECOUNT] = {0};
+   if(read(i2cfd, data, CALIB_BYTECOUNT) != CALIB_BYTECOUNT) {
       printf("Error: I2C calibration data read from 0x%02X\n", reg);
       return(-1);
    }
-   if(verbose == 1) printf("Debug: accelerometer data: X [0x%02X][0x%02X] Y [0x%02X][0x%02X] Z [0x%02X][0x%02X]\n",
-		           data[0], data[1], data[2], data[3], data[4], data[5]);
+   if(verbose == 1) {
+      int i = 0;
+      printf("Debug: Calibrationset:");
+      while(i<CALIB_BYTECOUNT) {
+         printf(" %02X", data[i]);
+         i++;
+      }
+      printf("\n");
+   }
 
    /* ------------------------------------------------------------ *
     * assigning accelerometer X-Y-Z offset, range per G-range      *
     * 16G = +/-16000, 8G = +/-8000, 4G = +/-4000, 2G = +/-2000     *
     * ------------------------------------------------------------ */
-   if(verbose == 1) printf("Debug: accelerometer offset: X [%d] Y [%d] Z [%d]\n",
+   if(verbose == 1) printf("Debug: accelerometer offset: [%d] [%d] [%d] (X-Y-Z)\n",
 		           ((int16_t)data[1] << 8) | data[0],
                            ((int16_t)data[3] << 8) | data[2],
                            ((int16_t)data[5] << 8) | data[4]);
@@ -134,7 +147,7 @@ int get_caloffset(struct bnocal *bno_ptr) {
    /* ------------------------------------------------------------ *
     * assigning magnetometer X-Y-Z offset, offset range is +/-6400 *
     * ------------------------------------------------------------ */
-   if(verbose == 1) printf("Debug:  magnetometer offset, range +/-6400: X [%d] Y [%d] Z [%d]\n",
+   if(verbose == 1) printf("Debug:  magnetometer offset: [%d] [%d] [%d] (X-Y-Z)\n",
                            ((int16_t)data[7] << 8) | data[6],
                            ((int16_t)data[9] << 8) | data[8],
                            ((int16_t)data[11] << 8) | data[10]);
@@ -146,7 +159,7 @@ int get_caloffset(struct bnocal *bno_ptr) {
     * assigning gyroscope X-Y-Z offset, range depends on dps value *
     * 2000 = +/-32000, 1000 = +/-16000, 500 = +/-8000, etc         *
     * ------------------------------------------------------------ */
-   if(verbose == 1) printf("Debug: gyroscope offset: X [%d] Y [%d] Z [%d]\n",
+   if(verbose == 1) printf("Debug:     gyroscope offset: [%d] [%d] [%d] (X-Y-Z)\n",
                            ((int16_t)data[13] << 8) | data[12],
                            ((int16_t)data[15] << 8) | data[14],
                            ((int16_t)data[17] << 8) | data[16]);
@@ -157,16 +170,17 @@ int get_caloffset(struct bnocal *bno_ptr) {
    /* ------------------------------------------------------------ *
     * assigning accelerometer radius, range is +/-1000             *
     * ------------------------------------------------------------ */
-   if(verbose == 1) printf("Debug: accelerometer radius, range +/-1000: [%d]\n",
+   if(verbose == 1) printf("Debug: accelerometer radius: [%d] (+/-1000)\n",
                            ((int16_t)data[19] << 8) | data[18]);
    bno_ptr->acc_rad = ((int16_t)data[19] << 8) | data[18];
 
    /* ------------------------------------------------------------ *
     * assigning magnetometer radius, range is +/-960               *
     * ------------------------------------------------------------ */
-   if(verbose == 1) printf("Debug:  magnetometer radius, range +/- 960: [%d]\n",
+   if(verbose == 1) printf("Debug:  magnetometer radius: [%d] (+/- 960)\n",
                            ((int16_t)data[21] << 8) | data[20]);
    bno_ptr->mag_rad = ((int16_t)data[21] << 8) | data[20];
+   set_mode(oldmode);
    return(0);
 }
 
@@ -177,7 +191,10 @@ int save_cal(char *file) {
    /* --------------------------------------------------------- *
     * Read 22 bytes calibration data from registers 0x55~66,    *
     * plus 4 reg 0x67~6A with accelerometer/magnetometer radius *
+    * switch to CONFIG, data is only visible in non-fusion mode *
     * --------------------------------------------------------- */
+   opmode_t oldmode = get_mode();
+   set_mode(config);
    int i = 0;
    char reg = ACC_OFFSET_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
@@ -194,9 +211,9 @@ int save_cal(char *file) {
       return(-1);
    }
    if(verbose == 1) {
-      printf("Debug: Sensor calibration data:\n");
+      printf("Debug: Calibrationset:");
       while(i<CALIB_BYTECOUNT) {
-         printf(" [0x%02X]", data[i]);
+         printf(" %02X", data[i]);
          i++;
       }
       printf("\n");
@@ -210,18 +227,19 @@ int save_cal(char *file) {
       printf("Error: Can't open %s for writing.\n", file);
       exit(-1);
    }
-   if(verbose == 1) printf("Debug:  Writing calibration file: [%s]\n", file);
+   if(verbose == 1) printf("Debug:  Write to file: [%s]\n", file);
 
    /* -------------------------------------------------------- *
     * write the bytes in data[] out                            *
     * -------------------------------------------------------- */
    int outbytes = fwrite(data, 1, CALIB_BYTECOUNT, calib);
    fclose(calib);
-   if(verbose == 1) printf("Debug: Bytes to calibration file: [%d]\n", outbytes);
+   if(verbose == 1) printf("Debug:  Bytes to file: [%d]\n", outbytes);
    if(outbytes != CALIB_BYTECOUNT) {
       printf("Error: %d/%d bytes written to file.\n", outbytes, CALIB_BYTECOUNT);
       return(-1);
    }
+   set_mode(oldmode);
    return(0);
 }
 
@@ -237,19 +255,68 @@ int load_cal(char *file) {
       printf("Error: Can't open %s for reading.\n", file);
       exit(-1);
    }
-   if(verbose == 1) printf("Debug:  Reading calibration file: [%s]\n", file);
+   if(verbose == 1) printf("Debug: Load from file: [%s]\n", file);
 
    /* -------------------------------------------------------- *
-    * read 22 bytes from file into data[]                      *
+    * Read 22 bytes from file into data[], starting at data[1] *
     * -------------------------------------------------------- */
-   char data[CALIB_BYTECOUNT] = {0};
-   int inbytes = fread(data, 1, CALIB_BYTECOUNT, calib);
+   char data[CALIB_BYTECOUNT+1] = {0};
+   data[0] = ACC_OFFSET_X_LSB_ADDR;
+   int inbytes = fread(&data[1], 1, CALIB_BYTECOUNT, calib);
    fclose(calib);
 
    if(inbytes != CALIB_BYTECOUNT) {
       printf("Error: %d/%d bytes read to file.\n", inbytes, CALIB_BYTECOUNT);
       return(-1);
    }
+   if(verbose == 1) {
+      printf("Debug: Calibrationset:");
+      int i = 1;
+      while(i<CALIB_BYTECOUNT+1) {
+         printf(" %02X", data[i]);
+         i++;
+      }
+      printf("\n");
+   }
+
+   /* -------------------------------------------------------- *
+    * Write 22 bytes from file into sensor registers from 0x55 *
+    * We need to switch in and out of CONFIG mode if needed... *
+    * -------------------------------------------------------- */
+   opmode_t oldmode = get_mode();
+   set_mode(config);
+   if(write(i2cfd, data, (CALIB_BYTECOUNT+1)) != (CALIB_BYTECOUNT+1)) {
+      printf("Error: I2C write failure for register 0x%02X\n", data[0]);
+      return(-1);
+   }
+
+   /* -------------------------------------------------------- *
+    * To verify, we read 22 bytes from 0x55 & compare to input *
+    * -------------------------------------------------------- */
+   char reg = ACC_OFFSET_X_LSB_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      return(-1);
+   }
+
+   char newdata[CALIB_BYTECOUNT] = {0};
+   if(read(i2cfd, newdata, CALIB_BYTECOUNT) != CALIB_BYTECOUNT) {
+      printf("Error: I2C calibration data read from 0x%02X\n", reg);
+      return(-1);
+   }
+
+   if(verbose == 1) printf("Debug: Registerupdate:");
+   int i = 0;
+   while(i<CALIB_BYTECOUNT) {
+      if(data[i+1] != newdata[i]) {
+         printf("\nError: Calibration load failure %02X register 0x%02X\n", newdata[i], reg+i);
+         //exit(-1);
+      }
+      if(verbose == 1) printf(" %02X", newdata[i]);
+      i++;
+   }
+   if(verbose == 1) printf("\n");
+   set_mode(oldmode);
    return(0);
 }
 

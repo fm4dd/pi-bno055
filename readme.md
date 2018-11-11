@@ -15,7 +15,7 @@ root@pi-ws01:/home/pi# i2cdetect -y 1
      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 00:          -- -- -- -- -- -- -- -- -- -- -- -- --
 10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-20: -- -- -- -- -- -- -- -- -- 29 -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- 28 -- -- -- -- -- -- --
 30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -37,8 +37,9 @@ cc i2c_bno055.o getbno055.o -o getbno055
 
 Running the program, extracting the sensor version and configuration information:
 ```
-pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t inf -v
-BN0055 Information at Sat Nov 10 16:12:14 2018
+pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t inf
+
+BN0055 Information at Sun Nov 11 14:09:47 2018
 ----------------------------------------------
    Chip Version ID = 0xA0
   Accelerometer ID = 0xFB
@@ -60,7 +61,7 @@ Acceleration Unit  = m/s2
         Euler Unit = Degrees
   Temperature Unit = Celsius
   Orientation Mode = Windows
-Sensor Temperature = 30°C
+Sensor Temperature = 29°C
 
 ----------------------------------------------
 Accelerometer  Power = NORMAL
@@ -73,27 +74,12 @@ Sensor System Calibration = Fully calibrated
     Gyroscope Calibration = Fully calibrated
 Accelerometer Calibration = Minimal Calibrated
  Magnetometer Calibration = Fully calibrated
-
 ```
 
 Running the program, showing the sensor calibration state and offset values:
 ```
-pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t cal -v
-Debug: ts=[1540717492] date=Sun Oct 28 18:04:52 2018
-Debug: Sensor address: [0x28]
-Debug: sensor system calibration: [3]
-Debug:     gyroscope calibration: [3]
-Debug: accelerometer calibration: [0]
-Debug:  magnetometer calibration: [3]
-Debug: I2C read 22 bytes starting at register 0x55
-Debug: accelerometer data: X [0][0] Y [0][0] Z [0][0]
-Debug: accelerometer offset: X [0] Y [0] Z [0]
-Debug:  magnetometer offset, range +/-6400: X [0] Y [0] Z [0]
-Debug: gyroscope offset: X [0] Y [0] Z [0]
-Debug: accelerometer radius, range +/-1000: [0]
-Debug:  magnetometer radius, range +/- 960: [480]
-
-Calibration state: 3 acc [S:0 X:0 Y:0 Z:0 R:0] mag [S:3 X:0 Y:0 Z:0 R:480] gyr [S:3 X:0 Y:0 Z:0]
+pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t cal
+sys [S:3] acc [S:1 X:0 Y:65534 Z:65528 R:1000] mag [S:3 X:65428 Y:65424 Z:65476 R:656] gyr [S:3 X:65534 Y:0 Z:1]
 ```
 
 Changing the operational mode, e.g. to CONFIG:
@@ -116,29 +102,21 @@ Debug: BNO055 Sensor Reset complete
 
 NDOF fusion mode, Euler angles
 ```
-pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t eul -v
-Debug: ts=[1540717576] date=Sun Oct 28 18:06:16 2018
-Debug: Sensor address: [0x28]
-Debug: Operation Mode: [0x0B]
-Debug: I2C read 6 bytes starting at register 0x1A
-Debug: Euler Orientation H:[0xF9][0x02] P:[0x78][0xFF] R:[0x75][0xFF]
-Debug: bnod.eul_head [761]
-Debug: bnod.eul_roll [65400]
-Debug: bnod.eul_pitc [65397]
-EUL-H: 0.12 EUL-R: -3.31 EUL-P: -15.31
+pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t eul
+EUL 233.00 -3.12 -15.94
 ```
 
 Writing calibration data to file
 ```
 pi@nanopi-neo2:~/pi-bno055 $ ./getbno055 -t cal -w bno.cfg
-Calibration state: 3 acc [S:1 X:1 Y:65532 Z:65522 R:1000] mag [S:3 X:65484 Y:65496 Z:65476 R:584] gyr [S:3 X:65535 Y:65535 Z:1]
-```
+sys [S:3] acc [S:1 X:0 Y:65534 Z:65528 R:1000] mag [S:3 X:65428 Y:65424 Z:65476 R:656] gyr [S:3 X:65534 Y:65535 Z:1]
 
-Reading the saved calibration data file content
-```
-pi@nanopi-neo2:~/pi-bno055 $ od -A x -t x1z -v bno.cfg
-000000 01 00 fc ff f2 ff cc ff d8 ff c4 ff ff ff ff ff  >................<
-000010 01 00 e8 03 48 02                                >....H.<
+pi@nanopi-neo2:~/pi-bno055 $ ls -l bno.cfg
+-rw-rw-r-- 1 pi pi 22 Nov 11 14:17 bno.cfg
+
+pi@nanopi-neo2:~/pi-bno055 $ od -A x -t x1 -v bno.cfg
+000000 00 00 fe ff f8 ff 94 ff 90 ff c4 ff fe ff ff ff
+000010 01 00 e8 03 90 02
 000016
 ```
 ## Usage
@@ -146,7 +124,7 @@ pi@nanopi-neo2:~/pi-bno055 $ od -A x -t x1z -v bno.cfg
 Program usage:
 ```
 pi@nanopi-neo2:~/pi-bno055 $ ./getbno055
-Usage: getbno055 [-a hex i2cr-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]
+Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]
 
 Command line parameters have the following format:
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)
@@ -193,4 +171,5 @@ Usage examples:
 ./getbno055 -t eul -o ./bno055.html
 ./getbno055 -m ndof
 ./getbno055 -w ./bno055.cal
+
 ```

@@ -40,7 +40,7 @@ char calfile[256];
  * print_usage() prints the programs commandline instructions.  *
  * ------------------------------------------------------------ */
 void usage() {
-   static char const usage[] = "Usage: getbno055 [-a hex i2cr-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]\n\
+   static char const usage[] = "Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]\n\
 \n\
 Command line parameters have the following format:\n\
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
@@ -386,17 +386,7 @@ int main(int argc, char *argv[]) {
     *  "-l" loads the sensor calibration data from file.          *
     * To update calibration data, sensor must be in CONFIG mode.  *
     * ----------------------------------------------------------- */
-    if(calflag == 2) {
-      /* -------------------------------------------------------- *
-       *  Open the calibration data file for writing.             *
-       * -------------------------------------------------------- */
-      FILE *calib;
-      if(! (calib=fopen(calfile, "r"))) {
-         printf("Error reading data from %s.\n", calfile);
-         exit(-1);
-      }
-      if(verbose == 1) printf("Debug: Reading from file %s.\n", calfile);
-   }
+    if(calflag == 2) load_cal(calfile);
 
    /* ----------------------------------------------------------- *
     * -t "cal"  print the sensor calibration data                 *
@@ -423,7 +413,7 @@ int main(int argc, char *argv[]) {
       /* -------------------------------------------------------- *
        *  Print the calibration data line                         *
        * -------------------------------------------------------- */
-      printf("Calibration state: %d", bnoc.scal_st);
+      printf("sys [S:%d]", bnoc.scal_st);
       printf(" acc [S:%d ", bnoc.acal_st);
       printf("X:%d Y:%d Z:%d", bnoc.aoff_x, bnoc.aoff_y, bnoc.aoff_z);
       printf(" R:%d]", bnoc.acc_rad);
@@ -549,9 +539,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * ACC-X: 4094.50 ACC-Y: 25.56 ACC-Z: 4067.25                  *
+       * ACC -45.00 264.00 939.00 (ACC X Y Z)                        *
        * ----------------------------------------------------------- */
-      printf("ACC-X: %3.2f ACC-Y: %3.2f ACC-Z: %3.2f\n", bnod.adata_x, bnod.adata_y, bnod.adata_z);
+      printf("ACC %3.2f %3.2f %3.2f\n", bnod.adata_x, bnod.adata_y, bnod.adata_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -586,9 +576,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * GYR-X: 4094.50 GYR-Y: 25.56 GYR-Z: 4067.25                  *
+       * GYR 0.00 0.06 -0.12 (GYR X Y Z)                             *
        * ----------------------------------------------------------- */
-      printf("GYR-X: %3.2f GYR-Y: %3.2f GYR-Z: %3.2f\n", bnod.gdata_x, bnod.gdata_y, bnod.gdata_z);
+      printf("GYR %3.2f %3.2f %3.2f\n", bnod.gdata_x, bnod.gdata_y, bnod.gdata_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -623,9 +613,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *              
-       * MAG-X: 5.98 MAG-Y: 13.24 MAG-Z: -18.55 (in MicroTesla)      *
+       * MAG -220.00 50.62 -345.62 (MAG X Y Z in Micro Tesla)        *
        * ----------------------------------------------------------- */
-      printf("MAG-X: %3.2f MAG-Y: %3.2f MAG-Z: %3.2f\n", bnod.mdata_x, bnod.mdata_y, bnod.mdata_z);
+      printf("MAG %3.2f %3.2f %3.2f\n", bnod.mdata_x, bnod.mdata_y, bnod.mdata_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -668,9 +658,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * EUL-H: 0.12 EUL-R: -3.31 EUL-P: -15.31 (degrees)            *
+       * EUL 66.06 -3.00 -15.56 (EUL H R P in Degrees)               *
        * ----------------------------------------------------------- */
-      printf("EUL-H: %3.2f EUL-R: %3.2f EUL-P: %3.2f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
+      printf("EUL %3.2f %3.2f %3.2f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -713,9 +703,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * QUA-W: -0.91 QUA-X: -0.34 QUA-Y: -0.13 QUA-Z: -0.22         *
+       * QUA 0.83 0.13 -0.05 -0.54 (QUA W X Y Z)                     *
        * ----------------------------------------------------------- */
-      printf("QUA-W: %3.2f QUA-X: %3.2f QUA-Y: %3.2f QUA-Z: %3.2f\n", bnod.quater_w, bnod.quater_x, bnod.quater_y, bnod.quater_z);
+      printf("QUA %3.2f %3.2f %3.2f %3.2f\n", bnod.quater_w, bnod.quater_x, bnod.quater_y, bnod.quater_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -760,9 +750,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * GRA-X: 4094.50 GRA-Y: 25.56 GRA-Z: 4067.25                  *
+       * GRA -3.19 16.38 58.94 (GRA X Y Z)                           *
        * ----------------------------------------------------------- */
-      printf("GRA-X: %3.2f GRA-Y: %3.2f GRA-Z: %3.2f\n", bnod.gravityx, bnod.gravityy, bnod.gravityz);
+      printf("GRA %3.2f %3.2f %3.2f\n", bnod.gravityx, bnod.gravityy, bnod.gravityz);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -805,9 +795,9 @@ int main(int argc, char *argv[]) {
 
       /* ----------------------------------------------------------- *
        * print the formatted output string to stdout (Example below) *
-       * LIN-X: 4094.50 LIN-Y: 25.56 LIN-Z: 4067.25                  *
+       * LIN 0.44 0.19 -0.38 (LIN X Y Z)                             *
        * ----------------------------------------------------------- */
-      printf("LIN-X: %3.2f LIN-Y: %3.2f LIN-Z: %3.2f\n", bnod.linacc_x, bnod.linacc_y, bnod.linacc_z);
+      printf("LIN %3.2f %3.2f %3.2f\n", bnod.linacc_x, bnod.linacc_y, bnod.linacc_z);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
