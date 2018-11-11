@@ -27,8 +27,7 @@
  * ------------------------------------------------------------ */
 int verbose = 0;
 int outflag = 0;
-int calflag = 0;
-int resflag = 0;
+int argflag = 0; // 1 dump, 2 reset, 3 load calib, 4 write calib
 char opr_mode[9] = {0};
 char pwr_mode[8] = {0};
 char datatype[256];
@@ -44,6 +43,7 @@ void usage() {
 \n\
 Command line parameters have the following format:\n\
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
+   -d   dump the complete sensor register map content\n\
    -m   set sensor operational mode. mode arguments:\n\
            config   = configuration mode\n\
            acconly  = accelerometer only\n\
@@ -99,7 +99,7 @@ void parseargs(int argc, char* argv[]) {
 
    if(argc == 1) { usage(); exit(-1); }
 
-   while ((arg = (int) getopt (argc, argv, "a:m:p:rt:l:w:o:hv")) != -1) {
+   while ((arg = (int) getopt (argc, argv, "a:dm:p:rt:l:w:o:hv")) != -1) {
       switch (arg) {
          // arg -v verbose, type: flag, optional
          case 'v':
@@ -114,6 +114,13 @@ void parseargs(int argc, char* argv[]) {
                exit(-1);
             }
             strncpy(senaddr, optarg, sizeof(senaddr));
+            break;
+
+         // arg -d
+         // optional, dumps the complete register map data
+         case 'd':
+            if(verbose == 1) printf("Debug: arg -d, value %s\n", optarg);
+            argflag = 1;
             break;
 
          // arg -m sets operations mode, type: string
@@ -132,7 +139,7 @@ void parseargs(int argc, char* argv[]) {
          // optional, resets sensor
          case 'r':
             if(verbose == 1) printf("Debug: arg -r, value %s\n", optarg);
-            resflag = 1;
+            argflag = 2;
             break;
 
          // arg -t + sensor component, type: string
@@ -149,7 +156,7 @@ void parseargs(int argc, char* argv[]) {
          // arg -l + calibration file name, type: string
          // loads the sensor calibration from file. example: ./bno055.cal
          case 'l':
-            calflag = 2;
+            argflag = 3;
             if(verbose == 1) printf("Debug: arg -l, value %s\n", optarg);
             strncpy(calfile, optarg, sizeof(calfile));
             break;
@@ -157,7 +164,7 @@ void parseargs(int argc, char* argv[]) {
          // arg -w + calibration file name, type: string
          // writes sensor calibration to file. example: ./bno055.cal
          case 'w':
-            calflag = 1;
+            argflag = 4;
             if(verbose == 1) printf("Debug: arg -w, value %s\n", optarg);
             strncpy(calfile, optarg, sizeof(calfile));
             break;
@@ -294,9 +301,21 @@ int main(int argc, char *argv[]) {
    get_i2cbus(senaddr);
 
    /* ----------------------------------------------------------- *
+    *  "-d" dump the register map content and exit the program    *
+    * ----------------------------------------------------------- */
+    if(argflag == 1) {
+      res = bno_dump();
+      if(res != 0) {
+         printf("Error: could not dump the register maps.\n");
+         exit(-1);
+      }
+      exit(0);
+   }
+
+   /* ----------------------------------------------------------- *
     *  "-r" reset the sensor and exit the program                 *
     * ----------------------------------------------------------- */
-    if(resflag == 1) {
+    if(argflag == 2) {
       res = bno_reset();
       if(res != 0) {
          printf("Error: could not reset the sensor.\n");
@@ -363,30 +382,10 @@ int main(int argc, char *argv[]) {
    }
 
    /* ----------------------------------------------------------- *
-    *  "-w" writes sensor calibration data to file.               *
-    * ----------------------------------------------------------- */
-    if(calflag == 1) {
-      struct bnocal bnoc;
-      /* -------------------------------------------------------- *
-       *  Check the sensors calibration state                     *
-       * -------------------------------------------------------- */
-      res = get_calstatus(&bnoc);
-      if(res != 0) {
-         printf("Error: Cannot read calibration state.\n");
-         exit(-1);
-      }
-      /* -------------------------------------------------------- *
-       *  Only save data if the sensor is fully calibrated (3)    *
-       * -------------------------------------------------------- */
-      if(bnoc.scal_st == 3) save_cal(calfile);
-      else printf("Error: Sensor not fully calibrated, abort writing to file %s.\n", calfile);
-   }
-
-   /* ----------------------------------------------------------- *
     *  "-l" loads the sensor calibration data from file.          *
     * To update calibration data, sensor must be in CONFIG mode.  *
     * ----------------------------------------------------------- */
-    if(calflag == 2) load_cal(calfile);
+    if(argflag == 3) load_cal(calfile);
 
    /* ----------------------------------------------------------- *
     * -t "cal"  print the sensor calibration data                 *
@@ -427,6 +426,27 @@ int main(int argc, char *argv[]) {
 
       exit(0);
    }
+
+   /* ----------------------------------------------------------- *
+    *  "-w" writes sensor calibration data to file.               *
+    * ----------------------------------------------------------- */
+    if(argflag == 4) {
+      struct bnocal bnoc;
+      /* -------------------------------------------------------- *
+       *  Check the sensors calibration state                     *
+       * -------------------------------------------------------- */
+      res = get_calstatus(&bnoc);
+      if(res != 0) {
+         printf("Error: Cannot read calibration state.\n");
+         exit(-1);
+      }
+      /* -------------------------------------------------------- *
+       *  Only save data if the sensor is fully calibrated (3)    *
+       * -------------------------------------------------------- */
+      if(bnoc.scal_st == 3) save_cal(calfile);
+      else printf("Error: Sensor not fully calibrated, abort writing to file %s.\n", calfile);
+   }
+
 
    /* ----------------------------------------------------------- *
     * -t "inf"  print the sensor configuration                    *

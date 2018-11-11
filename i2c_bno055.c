@@ -48,6 +48,67 @@ void get_i2cbus(char *i2caddr) {
 }
 
 /* --------------------------------------------------------------- *
+ * bno_dump() dumps the register map data.                         *
+ * --------------------------------------------------------------- */
+int bno_dump() {
+   int count = 0;
+
+   printf("------------------------------------------------------\n");
+   printf("BNO055 page-0:\n");
+   printf("------------------------------------------------------\n");
+   printf(" reg    0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
+   printf("------------------------------------------------------\n");
+   while(count < 8) {
+      char reg = count;
+      if(write(i2cfd, &reg, 1) != 1) {
+         printf("Error: I2C write failure for register 0x%02X\n", reg);
+         exit(-1);
+      }
+
+      char data[16] = {0};
+      if(read(i2cfd, &data, 16) != 16) {
+         printf("Error: I2C read failure for register 0x%02X\n", reg);
+         exit(-1);
+       
+      }
+      printf("[0x%02X] %02X %02X %02X %02X %02X %02X %02X %02X",
+             (reg*16), data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+      printf(" %02X %02X %02X %02X %02X %02X %02X %02X\n",
+             data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+      count++;
+   }
+
+   set_page1();
+   count = 0;
+   printf("------------------------------------------------------\n");
+   printf("BNO055 page-1:\n");
+   printf("------------------------------------------------------\n");
+   printf(" reg    0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
+   printf("------------------------------------------------------\n");
+   while(count < 8) {
+      char reg = count;
+      if(write(i2cfd, &reg, 1) != 1) {
+         printf("Error: I2C write failure for register 0x%02X\n", reg);
+         exit(-1);
+      }
+
+      char data[16] = {0};
+      if(read(i2cfd, &data, 16) != 16) {
+         printf("Error: I2C read failure for register 0x%02X\n", reg);
+         exit(-1);
+       
+      }
+      printf("[0x%02X] %02X %02X %02X %02X %02X %02X %02X %02X",
+             (reg*16), data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+      printf(" %02X %02X %02X %02X %02X %02X %02X %02X\n",
+             data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+      count++;
+   }
+
+   exit(0);
+}
+
+/* --------------------------------------------------------------- *
  * bno_reset() resets the sensor. It will come up in CONFIG mode.  *
  * --------------------------------------------------------------- */
 int bno_reset() {
@@ -56,7 +117,7 @@ int bno_reset() {
    data[1] = 0x20;
    if(write(i2cfd, data, 2) != 2) {
       printf("Error: I2C write failure for register 0x%02X\n", data[0]);
-      return(-1);
+      exit(-1);
    }
    if(verbose == 1) printf("Debug: BNO055 Sensor Reset complete\n");
    
@@ -64,7 +125,7 @@ int bno_reset() {
     * After a reset, the sensor needs at leat 650ms to boot up.    *
     * ------------------------------------------------------------ */
    usleep(650 * 1000);
-   return(0);
+   exit(0);
 }
 
 /* ------------------------------------------------------------ *

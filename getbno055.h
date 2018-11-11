@@ -9,6 +9,7 @@
 #define BNO055_ID            0xA0
 #define POWER_MODE_NORMAL    0x00
 #define CALIB_BYTECOUNT      22
+#define REGISTERMAP_END      0x7F
 
 /* ------------------------------------------------------------ *
  * Page-0 registers with general confguration and data output   *
@@ -309,7 +310,8 @@ typedef enum {
  * external function prototypes for I2C bus communication code  *
  * ------------------------------------------------------------ */
 extern void get_i2cbus(char*);            // get the I2C bus file handle
-extern int set_defaults();                // set sensor default values
+extern int set_page0();                   // set register map page 0
+extern int set_page1();                   // set register map page 1
 extern int get_calstatus(struct bnocal*); // read calibration status
 extern int get_caloffset(struct bnocal*); // read calibration values
 extern int get_inf(struct bnoinf*);       // read sensor information
@@ -332,6 +334,7 @@ extern int print_sstat(int);              // print system status string
 extern int get_remap(char);               // get the axis remap values
 extern int print_remap_conf(int);         // print axis configuration
 extern int print_remap_sign(int);         // print the axis remap +/-
+extern int bno_dump();                    // dump the register map data
 extern int bno_reset();                   // reset the sensor
 extern int save_cal(char*);               // write calibration to file
 extern int load_cal(char*);               // load calibration from file
