@@ -13,11 +13,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/i2c-dev.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
-#include <string.h>
 #include <fcntl.h>
-#include <time.h>
 #include "getbno055.h"
 
 /* ------------------------------------------------------------ *
