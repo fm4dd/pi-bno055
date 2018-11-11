@@ -73,7 +73,7 @@ Command line parameters have the following format:\n\
            lin = Linear Accel (X-Y-Z axis values)\n\
            inf = Sensor info (23 version and state values)\n\
            cal = Calibration data (mag, gyro and accel calibration values)\n\
-*  -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
+   -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
    -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
    -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html\n\
    -h   display this message\n\

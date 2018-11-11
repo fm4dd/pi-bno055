@@ -124,10 +124,11 @@ pi@nanopi-neo2:~/pi-bno055 $ od -A x -t x1 -v bno.cfg
 Program usage:
 ```
 pi@nanopi-neo2:~/pi-bno055 $ ./getbno055
-Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]
+Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|g         ra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]
 
 Command line parameters have the following format:
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)
+   -d   dump the complete sensor register map content
    -m   set sensor operational mode. mode arguments:
            config   = configuration mode
            acconly  = accelerometer only
@@ -157,13 +158,13 @@ Command line parameters have the following format:
            lin = Linear Accel (X-Y-Z axis values)
            inf = Sensor info (23 version and state values)
            cal = Calibration data (mag, gyro and accel calibration values)
-*  -l   load sensor calibration data from file, Example -l ./bno055.cal
+   -l   load sensor calibration data from file, Example -l ./bno055.cal
    -w   write sensor calibration data to file, Example -w ./bno055.cal
-   -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html
+   -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055         .html
    -h   display this message
    -v   enable debug output
 
-Note: The sensor is executing calibration in the background, but only in fusion mode.
+Note: The sensor is executing calibration in the background, but only in fusion          mode.
 
 Usage examples:
 ./getbno055 -a 0x28 -t inf -v
