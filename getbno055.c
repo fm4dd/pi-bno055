@@ -474,6 +474,7 @@ int main(int argc, char *argv[]) {
       printf("Axis Configuration = "); print_remap_conf(bnoi.axr_conf);
       printf("   Axis Remap Sign = "); print_remap_sign(bnoi.axr_sign);
       printf("System Status Code = "); print_sstat(bnoi.sys_stat);
+      printf("System Clocksource = "); print_clksrc();
 
       printf("Accelerometer Test = ");
       if((bnoi.selftest >> 0) & 0x01) printf("OK\n");

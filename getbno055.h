@@ -8,7 +8,8 @@
 #define I2CBUS               "/dev/i2c-0"
 #define BNO055_ID            0xA0
 #define POWER_MODE_NORMAL    0x00
-#define CALIB_BYTECOUNT      22
+//#define CALIB_BYTECOUNT      22
+#define CALIB_BYTECOUNT      34
 #define REGISTERMAP_END      0x7F
 
 /* ------------------------------------------------------------ *
@@ -104,7 +105,7 @@
 #define BNO055_AXIS_MAP_CONFIG_ADDR       0x41
 #define BNO055_AXIS_MAP_SIGN_ADDR         0x42
 
-/* SIC registers */
+/* Soft Iron Calibration registers */
 #define BNO055_SIC_MATRIX_0_LSB_ADDR      0x43
 #define BNO055_SIC_MATRIX_0_MSB_ADDR      0x44
 #define BNO055_SIC_MATRIX_1_LSB_ADDR      0x45
@@ -322,6 +323,8 @@ extern int get_eul(struct bnoeul*);       // read euler orientation
 extern int get_qua(struct bnoqua*);       // read quaternation data
 extern int get_gra(struct bnogra*);       // read gravity data
 extern int get_lin(struct bnolin*);       // read linar acceleration data
+extern int get_clksrc();                  // get the clock source setting
+extern void print_clksrc();               // print clock source setting
 extern int set_mode(opmode_t);            // set the sensor ops mode
 extern int get_mode();                    // get the sensor ops mode
 extern int print_mode(int);               // print ops mode string

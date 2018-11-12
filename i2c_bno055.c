@@ -79,6 +79,7 @@ int bno_dump() {
    }
 
    set_page1();
+   usleep(50 * 1000);
    count = 0;
    printf("------------------------------------------------------\n");
    printf("BNO055 page-1:\n");
@@ -105,6 +106,8 @@ int bno_dump() {
       count++;
    }
 
+   set_page0();
+   usleep(50 * 1000);
    exit(0);
 }
 
@@ -247,14 +250,15 @@ int get_caloffset(struct bnocal *bno_ptr) {
  * ------------------------------------------------------------ */
 int save_cal(char *file) {
    /* --------------------------------------------------------- *
-    * Read 22 bytes calibration data from registers 0x55~66,    *
+    * Read 34 bytes calibration data from registers 0x43~66,    *
     * plus 4 reg 0x67~6A with accelerometer/magnetometer radius *
     * switch to CONFIG, data is only visible in non-fusion mode *
     * --------------------------------------------------------- */
    opmode_t oldmode = get_mode();
    set_mode(config);
    int i = 0;
-   char reg = ACC_OFFSET_X_LSB_ADDR;
+   //char reg = ACC_OFFSET_X_LSB_ADDR;
+   char reg = BNO055_SIC_MATRIX_0_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -316,10 +320,11 @@ int load_cal(char *file) {
    if(verbose == 1) printf("Debug: Load from file: [%s]\n", file);
 
    /* -------------------------------------------------------- *
-    * Read 22 bytes from file into data[], starting at data[1] *
+    * Read 34 bytes from file into data[], starting at data[1] *
     * -------------------------------------------------------- */
    char data[CALIB_BYTECOUNT+1] = {0};
-   data[0] = ACC_OFFSET_X_LSB_ADDR;
+   //data[0] = ACC_OFFSET_X_LSB_ADDR;
+   data[0] = BNO055_SIC_MATRIX_0_LSB_ADDR;
    int inbytes = fread(&data[1], 1, CALIB_BYTECOUNT, calib);
    fclose(calib);
 
@@ -338,20 +343,23 @@ int load_cal(char *file) {
    }
 
    /* -------------------------------------------------------- *
-    * Write 22 bytes from file into sensor registers from 0x55 *
+    * Write 34 bytes from file into sensor registers from 0x43 *
     * We need to switch in and out of CONFIG mode if needed... *
     * -------------------------------------------------------- */
    opmode_t oldmode = get_mode();
    set_mode(config);
+   usleep(50 * 1000);
+
    if(write(i2cfd, data, (CALIB_BYTECOUNT+1)) != (CALIB_BYTECOUNT+1)) {
       printf("Error: I2C write failure for register 0x%02X\n", data[0]);
       return(-1);
    }
 
    /* -------------------------------------------------------- *
-    * To verify, we read 22 bytes from 0x55 & compare to input *
+    * To verify, we read 34 bytes from 0x43 & compare to input *
     * -------------------------------------------------------- */
-   char reg = ACC_OFFSET_X_LSB_ADDR;
+   //char reg = ACC_OFFSET_X_LSB_ADDR;
+   char reg = BNO055_SIC_MATRIX_0_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -375,6 +383,12 @@ int load_cal(char *file) {
    }
    if(verbose == 1) printf("\n");
    set_mode(oldmode);
+
+   /* -------------------------------------------------------- *
+    * 650 ms delay are only needed if -l and -t are both used  *
+    * to let the fusion code process the new calibration data  *
+    * -------------------------------------------------------- */
+   usleep(650 * 1000);
    return(0);
 }
 
@@ -746,7 +760,28 @@ int get_qua(struct bnoqua *bnod_ptr) {
  *  get_gra() - read gravity vector into the global struct      *
  * ------------------------------------------------------------ */
 int get_gra(struct bnogra *bnod_ptr) {
-   char reg = BNO055_GRAVITY_DATA_X_LSB_ADDR;
+   /* --------------------------------------------------------- *
+    * Get the unit conversion: 1 m/s2 = 100 LSB, 1 mg = 1 LSB   *
+    * --------------------------------------------------------- */
+   char reg = BNO055_UNIT_SEL_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      return(-1);
+   }
+   char unit_sel;
+   if(read(i2cfd, &unit_sel, 1) != 1) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      return(-1);
+   }
+
+   double ufact;
+   if((unit_sel >> 0) & 0x01) ufact = 1.0;
+   else ufact = 100.0;
+
+   /* --------------------------------------------------------- *
+    * Get the gravity vector data                               *
+    * --------------------------------------------------------- */
+   reg = BNO055_GRAVITY_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -762,15 +797,15 @@ int get_gra(struct bnogra *bnod_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0];
    if(verbose == 1) printf("Debug: Gravity Vector H: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnod_ptr->gravityx = (double) buf / 16.0;
+   bnod_ptr->gravityx = (double) buf / ufact;
 
    buf = ((int16_t)data[3] << 8) | data[2];
    if(verbose == 1) printf("Debug: Gravity Vector M: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnod_ptr->gravityy = (double) buf / 16.0;
+   bnod_ptr->gravityy = (double) buf / ufact;
 
    buf = ((int16_t)data[5] << 8) | data[4];
    if(verbose == 1) printf("Debug: Gravity Vector P: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnod_ptr->gravityz = (double) buf / 16.0;
+   bnod_ptr->gravityz = (double) buf / ufact;
    return(0);
 }
 
@@ -778,7 +813,28 @@ int get_gra(struct bnogra *bnod_ptr) {
  *  get_lin() - read linear acceleration into the global struct *
  * ------------------------------------------------------------ */
 int get_lin(struct bnolin *bnod_ptr) {
-   char reg = BNO055_LIN_ACC_DATA_X_LSB_ADDR;
+   /* --------------------------------------------------------- *
+    * Get the unit conversion: 1 m/s2 = 100 LSB, 1 mg = 1 LSB   *
+    * --------------------------------------------------------- */
+   char reg = BNO055_UNIT_SEL_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      return(-1);
+   }
+   char unit_sel;
+   if(read(i2cfd, &unit_sel, 1) != 1) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      return(-1);
+   }
+
+   double ufact;
+   if((unit_sel >> 0) & 0x01) ufact = 1.0;
+   else ufact = 100.0;
+
+   /* --------------------------------------------------------- *
+    * Get the linear acceleration data                          *
+    * --------------------------------------------------------- */
+   reg = BNO055_LIN_ACC_DATA_X_LSB_ADDR;
    if(write(i2cfd, &reg, 1) != 1) {
       printf("Error: I2C write failure for register 0x%02X\n", reg);
       return(-1);
@@ -794,15 +850,15 @@ int get_lin(struct bnolin *bnod_ptr) {
 
    int16_t buf = ((int16_t)data[1] << 8) | data[0];
    if(verbose == 1) printf("Debug: Linear Acceleration H: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[0], data[1],buf);
-   bnod_ptr->linacc_x = (double) buf / 16.0;
+   bnod_ptr->linacc_x = (double) buf / ufact;
 
    buf = ((int16_t)data[3] << 8) | data[2];
    if(verbose == 1) printf("Debug: Linear Acceleration M: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[2], data[3],buf);
-   bnod_ptr->linacc_y = (double) buf / 16.0;
+   bnod_ptr->linacc_y = (double) buf / ufact;
 
    buf = ((int16_t)data[5] << 8) | data[4];
    if(verbose == 1) printf("Debug: Linear Acceleration P: LSB [0x%02X] MSB [0x%02X] INT16 [%d]\n", data[4], data[5],buf);
-   bnod_ptr->linacc_z = (double) buf / 16.0;
+   bnod_ptr->linacc_z = (double) buf / ufact;
    return(0);
 }
 
@@ -1194,6 +1250,38 @@ int set_page1() {
       return(-1);
    }
    return(0);
+}
+
+/* ------------------------------------------------------------ *
+ * get_clksrc() - return setting for internal/external clock    *
+ * ------------------------------------------------------------ */
+int get_clksrc() {
+   char reg = BNO055_SYS_TRIGGER_ADDR;
+   if(write(i2cfd, &reg, 1) != 1) {
+      printf("Error: I2C write failure for register 0x%02X\n", reg);
+      set_page0();
+      return(-1);
+   }
+
+   char data;
+   if(read(i2cfd, &data, 1) != 1) {
+      printf("Error: I2C read failure for register data 0x%02X\n", reg);
+      set_page0();
+      return(-1);
+   }
+
+   if(verbose == 1) printf("Debug: CLK_SEL bit-7 in register %d: [%d]\n", reg, (data & 0b10000000) >> 7);
+   return (data & 0b10000000) >> 7; // system calibration status
+}
+
+/* ------------------------------------------------------------ *
+ * print_clksrc() - print setting for internal/external clock   *
+ * ------------------------------------------------------------ */
+void print_clksrc() {
+   int src = get_clksrc();
+   if(src == 0) printf("Internal Clock (default)\n");
+   if(src == 1) printf("External Clock\n");
+   if(src == -1) printf("Clock Reading error\n");
 }
 
 /* ------------------------------------------------------------ *
