@@ -73,6 +73,7 @@ Command line parameters have the following format:\n\
            lin = Linear Accel (X-Y-Z axis values)\n\
            inf = Sensor info (23 version and state values)\n\
            cal = Calibration data (mag, gyro and accel calibration values)\n\
+           continuous = continuous data-eul)\n\
    -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
    -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
    -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html\n\
@@ -681,7 +682,7 @@ int main(int argc, char *argv[]) {
        * print the formatted output string to stdout (Example below) *
        * EUL 66.06 -3.00 -15.56 (EUL H R P in Degrees)               *
        * ----------------------------------------------------------- */
-      printf("EUL %3.2f %3.2f %3.2f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
+      printf("EUL %3.4f %3.4f %3.4f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
 
       if(outflag == 1) {
          /* -------------------------------------------------------- *
@@ -702,6 +703,53 @@ int main(int argc, char *argv[]) {
          fclose(html);
       }
    } /* End reading Euler Orientation */
+
+  /* ----------------------------------------------------------- *
+    *  "-t continuous"                                            *
+    * This requires the sensor to be in fusion mode (mode > 7).   *
+    * ----------------------------------------------------------- */
+   if(strcmp(datatype, "continuous") == 0) {
+
+      int mode = get_mode();
+      if(mode < 8) {
+         printf("Error getting Euler data, sensor mode %d is not a fusion mode.\n", mode);
+         exit(-1);
+      }
+
+      struct bnoeul bnod;
+      /* ----------------------------------------------------------- *
+       * print the formatted output string to stdout (Example below) *
+       * EUL 66.06 -3.00 -15.56 (EUL H R P in Degrees)               *
+       * ----------------------------------------------------------- */
+      while(1){
+        res = get_eul(&bnod);
+        if(res != 0) {
+           printf("Error: Cannot read Euler orientation data.\n");
+           continue;
+        }
+        printf("EUL %3.4f %3.4f %3.4f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
+        sleep(1);
+        if(outflag == 1) {
+         /* -------------------------------------------------------- *
+          *  Open the html file for writing Euler Orientation data   *
+          * -------------------------------------------------------- */
+         FILE *html;
+         if(! (html=fopen(htmfile, "w"))) {
+            printf("Error open %s for writing.\n", htmfile);
+            exit(-1);
+         }
+         fprintf(html, "<table><tr>\n");
+         fprintf(html, "<td class=\"sensordata\">Euler Heading:<span class=\"sensorvalue\">%f</span></td>\n", bnod.eul_head);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Euler Roll:<span class=\"sensorvalue\">%f</span></td>\n", bnod.eul_roll);
+         fprintf(html, "<td class=\"sensorspace\"></td>\n");
+         fprintf(html, "<td class=\"sensordata\">Euler Pitch:<span class=\"sensorvalue\">%f</span></td>\n", bnod.eul_pitc);
+         fprintf(html, "</tr></table>\n");
+         fclose(html);
+        }
+      }
+      
+   } /* End reading continuous data */
 
    /* ----------------------------------------------------------- *
     *  "-t qua" reads the Quaternation data from the sensor.      *
