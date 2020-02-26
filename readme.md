@@ -161,11 +161,11 @@ Command line parameters have the following format:
            continuous = continuous data-eul
    -l   load sensor calibration data from file, Example -l ./bno055.cal
    -w   write sensor calibration data to file, Example -w ./bno055.cal
-   -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055         .html
+   -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html
    -h   display this message
    -v   enable debug output
 
-Note: The sensor is executing calibration in the background, but only in fusion          mode.
+Note: The sensor is executing calibration in the background, but only in fusion mode.
 
 Usage examples:
 ./getbno055 -a 0x28 -t inf -v
