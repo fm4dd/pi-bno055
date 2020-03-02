@@ -28,6 +28,7 @@ void get_i2cbus(char *i2cbus, char *i2caddr) {
       printf("Error failed to open I2C bus [%s].\n", i2cbus);
       exit(-1);
    }
+   if(verbose == 1) printf("Debug: I2C bus device: [%s]\n", i2cbus);
    /* --------------------------------------------------------- *
     * Set I2C device (BNO055 I2C address is  0x28 or 0x29)      *
     * --------------------------------------------------------- */

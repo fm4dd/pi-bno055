@@ -123,7 +123,7 @@ void parseargs(int argc, char* argv[]) {
          // optional, example: "/dev/i2c-1"
          case 'b':
             if(verbose == 1) printf("Debug: arg -b, value %s\n", optarg);
-            if (strlen(optarg) != sizeof(i2c_bus)) {
+            if (strlen(optarg) >= sizeof(i2c_bus)) {
                printf("Error: invalid i2c bus argument.\n");
                exit(-1);
             }
