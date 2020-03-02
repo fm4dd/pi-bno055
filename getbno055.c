@@ -32,6 +32,7 @@ char opr_mode[9] = {0};
 char pwr_mode[8] = {0};
 char datatype[256];
 char senaddr[256] = "0x28";
+char i2c_bus[256] = I2CBUS;
 char htmfile[256];
 char calfile[256];
 
@@ -43,6 +44,7 @@ void usage() {
 \n\
 Command line parameters have the following format:\n\
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
+   -b   I2C bus to query, Example: -b /dev/i2c-1 (default)\n\
    -d   dump the complete sensor register map content\n\
    -m   set sensor operational mode. mode arguments:\n\
            config   = configuration mode\n\
@@ -100,7 +102,7 @@ void parseargs(int argc, char* argv[]) {
 
    if(argc == 1) { usage(); exit(-1); }
 
-   while ((arg = (int) getopt (argc, argv, "a:dm:p:rt:l:w:o:hv")) != -1) {
+   while ((arg = (int) getopt (argc, argv, "a:b:dm:p:rt:l:w:o:hv")) != -1) {
       switch (arg) {
          // arg -v verbose, type: flag, optional
          case 'v':
@@ -115,6 +117,17 @@ void parseargs(int argc, char* argv[]) {
                exit(-1);
             }
             strncpy(senaddr, optarg, sizeof(senaddr));
+            break;
+
+         // arg -b + I2C bus, type: string
+         // optional, example: "/dev/i2c-1"
+         case 'b':
+            if(verbose == 1) printf("Debug: arg -b, value %s\n", optarg);
+            if (strlen(optarg) != sizeof(i2c_bus)) {
+               printf("Error: invalid i2c bus argument.\n");
+               exit(-1);
+            }
+            strncpy(i2c_bus, optarg, sizeof(i2c_bus));
             break;
 
          // arg -d
@@ -299,7 +312,7 @@ int main(int argc, char *argv[]) {
    /* ----------------------------------------------------------- *
     * "-a" open the I2C bus and connect to the sensor i2c address *
     * ----------------------------------------------------------- */
-   get_i2cbus(senaddr);
+   get_i2cbus(i2c_bus, senaddr);
 
    /* ----------------------------------------------------------- *
     *  "-d" dump the register map content and exit the program    *

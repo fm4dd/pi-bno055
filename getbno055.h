@@ -310,7 +310,7 @@ typedef enum {
 /* ------------------------------------------------------------ *
  * external function prototypes for I2C bus communication code  *
  * ------------------------------------------------------------ */
-extern void get_i2cbus(char*);            // get the I2C bus file handle
+extern void get_i2cbus(char*, char*);     // get the I2C bus file handle
 extern int set_page0();                   // set register map page 0
 extern int set_page1();                   // set register map page 1
 extern int get_calstatus(struct bnocal*); // read calibration status

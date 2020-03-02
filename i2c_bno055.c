@@ -22,10 +22,10 @@
  * get_i2cbus() - Enables the I2C bus communication. Raspberry  *
  * Pi 2 uses i2c-1, RPI 1 used i2c-0, NanoPi also uses i2c-0.   *
  * ------------------------------------------------------------ */
-void get_i2cbus(char *i2caddr) {
+void get_i2cbus(char *i2cbus, char *i2caddr) {
 
-   if((i2cfd = open(I2CBUS, O_RDWR)) < 0) {
-      printf("Error failed to open I2C bus [%s].\n", I2CBUS);
+   if((i2cfd = open(i2cbus, O_RDWR)) < 0) {
+      printf("Error failed to open I2C bus [%s].\n", i2cbus);
       exit(-1);
    }
    /* --------------------------------------------------------- *

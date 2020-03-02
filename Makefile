@@ -1,6 +1,6 @@
 C=gcc
 CFLAGS= -O3 -Wall -g
-LIBS=
+LIBS= -lm
 AR=ar
 
 ALLBIN=getbno055

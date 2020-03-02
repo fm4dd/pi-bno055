@@ -128,6 +128,7 @@ Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|g
 
 Command line parameters have the following format:
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)
+   -b   I2C bus to query, Example: -b /dev/i2c-1 (default)
    -d   dump the complete sensor register map content
    -m   set sensor operational mode. mode arguments:
            config   = configuration mode
