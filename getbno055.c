@@ -140,12 +140,20 @@ void parseargs(int argc, char* argv[]) {
          // arg -m sets operations mode, type: string
          case 'm':
             if(verbose == 1) printf("Debug: arg -m, value %s\n", optarg);
+            if (strlen(optarg) >= sizeof(opr_mode)) {
+               printf("Error: invalid opr_mode argument.\n");
+               exit(-1);
+            }
             strncpy(opr_mode, optarg, sizeof(opr_mode));
             break;
 
          // arg -p sets power mode, type: string
          case 'p':
             if(verbose == 1) printf("Debug: arg -p, value %s\n", optarg);
+            if (strlen(optarg) >= sizeof(pwr_mode)) {
+               printf("Error: invalid pwr_mode argument.\n");
+               exit(-1);
+            }
             strncpy(pwr_mode, optarg, sizeof(pwr_mode));
             break;
 
@@ -172,6 +180,10 @@ void parseargs(int argc, char* argv[]) {
          case 'l':
             argflag = 3;
             if(verbose == 1) printf("Debug: arg -l, value %s\n", optarg);
+            if (strlen(optarg) >= sizeof(calfile)) {
+               printf("Error: invalid calfile argument.\n");
+               exit(-1);
+            }
             strncpy(calfile, optarg, sizeof(calfile));
             break;
 
@@ -180,6 +192,10 @@ void parseargs(int argc, char* argv[]) {
          case 'w':
             argflag = 4;
             if(verbose == 1) printf("Debug: arg -w, value %s\n", optarg);
+            if (strlen(optarg) >= sizeof(calfile)) {
+               printf("Error: invalid calfile argument.\n");
+               exit(-1);
+            }
             strncpy(calfile, optarg, sizeof(calfile));
             break;
 
@@ -188,6 +204,10 @@ void parseargs(int argc, char* argv[]) {
          case 'o':
             outflag = 1;
             if(verbose == 1) printf("Debug: arg -o, value %s\n", optarg);
+            if (strlen(optarg) >= sizeof(htmfile)) {
+               printf("Error: invalid htmfile argument.\n");
+               exit(-1);
+            }
             strncpy(htmfile, optarg, sizeof(htmfile));
             break;
 
