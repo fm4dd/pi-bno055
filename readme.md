@@ -1,5 +1,7 @@
 # Pi-BNO055
 
+![test](https://github.com/fm4dd/pi-bno055/workflows/test/badge.svg)
+
 ## Background
 
 This is a C driver program for operating a Bosch BNO055 IMU sensor via I2C on a Raspberry Pi. I used it with a GY-BNO055 and a Adafruit BNO055. On the GY-BNO055, I had to bridge two solder pads for enabling I2C mode, because serial mode was default.  Later I switched to Adafruit for the superior quality and the onboard 5V-level support.
@@ -7,8 +9,12 @@ This is a C driver program for operating a Bosch BNO055 IMU sensor via I2C on a 
 <img src="ada-bno055.png" height="320px" width="273px">
 
 ## I2C bus connection
+For I2C communication functions, I am using the i2c-tools and i2c-dev packages.
 
-Connecting the GY-BNO055 sensor to the Raspberry Pi I2C bus, the sensor responds with the slave address 0x29. The Adafruit sensor responds by default under 0x28.
+```
+sudo apt-get install -y i2c-tools libi2c-dev
+```
+Now we can use the i2cdetect command to query the I2C bus.  Connecting the GY-BNO055 sensor to the Raspberry Pi I2C bus, the sensor responds with the slave address 0x29. The Adafruit sensor responds by default under 0x28.
 
 ```
 root@pi-ws01:/home/pi# i2cdetect -y 1
