@@ -40,7 +40,7 @@ char calfile[256];
  * print_usage() prints the programs commandline instructions.  *
  * ------------------------------------------------------------ */
 void usage() {
-   static char const usage[] = "Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]\n\
+   static char const usage[] = "Usage: getbno055 [-a hex i2c-addr] [-m <opr_mode>] [-t acc|gyr|mag|eul|qua|lin|gra|inf|cal|con] [-r] [-w calfile] [-l calfile] [-o htmlfile] [-v]\n\
 \n\
 Command line parameters have the following format:\n\
    -a   sensor I2C bus address in hex, Example: -a 0x28 (default)\n\
@@ -75,7 +75,7 @@ Command line parameters have the following format:\n\
            lin = Linear Accel (X-Y-Z axis values)\n\
            inf = Sensor info (23 version and state values)\n\
            cal = Calibration data (mag, gyro and accel calibration values)\n\
-           continuous = continuous data-eul)\n\
+           con = Continuous data (eul)\n\
    -l   load sensor calibration data from file, Example -l ./bno055.cal\n\
    -w   write sensor calibration data to file, Example -w ./bno055.cal\n\
    -o   output sensor data to HTML table file, requires -t, Example: -o ./bno055.html\n\
@@ -738,10 +738,10 @@ int main(int argc, char *argv[]) {
    } /* End reading Euler Orientation */
 
   /* ----------------------------------------------------------- *
-    *  "-t continuous"                                            *
+    *  "-t con"                                                   *
     * This requires the sensor to be in fusion mode (mode > 7).   *
     * ----------------------------------------------------------- */
-   if(strcmp(datatype, "continuous") == 0) {
+   if(strcmp(datatype, "con") == 0) {
 
       int mode = get_mode();
       if(mode < 8) {
