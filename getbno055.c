@@ -755,13 +755,17 @@ int main(int argc, char *argv[]) {
        * EUL 66.06 -3.00 -15.56 (EUL H R P in Degrees)               *
        * ----------------------------------------------------------- */
       while(1){
+	clock_t t;
+        t = clock();
+
         res = get_eul(&bnod);
         if(res != 0) {
            printf("Error: Cannot read Euler orientation data.\n");
            continue;
         }
+
         printf("EUL %3.4f %3.4f %3.4f\n", bnod.eul_head, bnod.eul_roll, bnod.eul_pitc);
-        sleep(1);
+
         if(outflag == 1) {
          /* -------------------------------------------------------- *
           *  Open the html file for writing Euler Orientation data   *
@@ -780,6 +784,10 @@ int main(int argc, char *argv[]) {
          fprintf(html, "</tr></table>\n");
          fclose(html);
         }
+
+	t = clock() - t;
+        double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
+        printf("Sensor reading took %f seconds \n", time_taken);
       }
       
    } /* End reading continuous data */
