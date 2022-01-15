@@ -168,8 +168,7 @@
 /* ------------------------------------------------------------ *
  * global variables                                             *
  * ------------------------------------------------------------ */
-int i2cfd;       // I2C file descriptor
-int verbose;     // debug flag, 0 = normal, 1 = debug mode
+extern int verbose;     // debug flag, 0 = normal, 1 = debug mode
 
 /* ------------------------------------------------------------ *
  * BNO055 versions, status data and other infos struct          *
